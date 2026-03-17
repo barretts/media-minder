@@ -60,6 +60,21 @@ def generate_nfo(movie: dict, data: dict) -> str:
 {studios_xml}
 {countries_xml}
 {actors_xml}
+    <fileinfo>
+        <streamdetails>
+            <video>
+                <codec>{escape_xml(str(data.get('videoCodec', '')))}</codec>
+                <width>{data.get('width', 0)}</width>
+                <height>{data.get('height', 0)}</height>
+                <duration>{data.get('duration', 0)}</duration>
+                <bitrate>{data.get('bitrate', 0)}</bitrate>
+            </video>
+            <audio>
+                <codec>{escape_xml(str(data.get('audioCodec', '')))}</codec>
+                <channels>{data.get('audioChannels', 0)}</channels>
+            </audio>
+        </streamdetails>
+    </fileinfo>
 </movie>"""
     return nfo
 
@@ -117,6 +132,45 @@ def read_nfo(nfo_path: str) -> dict | None:
         except ValueError:
             runtime = 0
 
+        # Parse <fileinfo> if present
+        fileinfo = {}
+        vid_el = root.find("fileinfo/streamdetails/video")
+        if vid_el is not None:
+            vc = (vid_el.findtext("codec") or "").strip()
+            try:
+                vw = int(vid_el.findtext("width", "0") or 0)
+            except ValueError:
+                vw = 0
+            try:
+                vh = int(vid_el.findtext("height", "0") or 0)
+            except ValueError:
+                vh = 0
+            try:
+                vd = int(vid_el.findtext("duration", "0") or 0)
+            except ValueError:
+                vd = 0
+            try:
+                vb = int(vid_el.findtext("bitrate", "0") or 0)
+            except ValueError:
+                vb = 0
+            if vw or vh or vc:
+                fileinfo["videoCodec"] = vc
+                fileinfo["width"] = vw
+                fileinfo["height"] = vh
+                fileinfo["resolution"] = f"{vw}x{vh}" if vw and vh else ""
+                fileinfo["duration"] = vd
+                fileinfo["bitrate"] = vb
+        aud_el = root.find("fileinfo/streamdetails/audio")
+        if aud_el is not None:
+            ac = (aud_el.findtext("codec") or "").strip()
+            try:
+                ach = int(aud_el.findtext("channels", "0") or 0)
+            except ValueError:
+                ach = 0
+            if ac or ach:
+                fileinfo["audioCodec"] = ac
+                fileinfo["audioChannels"] = ach
+
         return {
             "title": text("title"),
             "originalTitle": text("originaltitle"),
@@ -142,9 +196,38 @@ def read_nfo(nfo_path: str) -> dict | None:
             "posterUrl": text("thumb"),
             "fanartUrl": fanart_url,
             "thumbUrl": text("thumb"),
+            "fileinfo": fileinfo if fileinfo else None,
         }
     except Exception:
         return None
+
+
+def update_nfo_fileinfo(nfo_path: str, probe: dict) -> bool:
+    """Insert or replace <fileinfo> in an existing NFO without rewriting movie data."""
+    try:
+        tree = ET.parse(nfo_path)
+        root = tree.getroot()
+        # Remove existing fileinfo
+        for fi in root.findall("fileinfo"):
+            root.remove(fi)
+        # Build new fileinfo element
+        fi = ET.SubElement(root, "fileinfo")
+        sd = ET.SubElement(fi, "streamdetails")
+        vid = ET.SubElement(sd, "video")
+        ET.SubElement(vid, "codec").text = str(probe.get("videoCodec", ""))
+        ET.SubElement(vid, "width").text = str(probe.get("width", 0))
+        ET.SubElement(vid, "height").text = str(probe.get("height", 0))
+        ET.SubElement(vid, "duration").text = str(probe.get("duration", 0))
+        ET.SubElement(vid, "bitrate").text = str(probe.get("bitrate", 0))
+        aud = ET.SubElement(sd, "audio")
+        ET.SubElement(aud, "codec").text = str(probe.get("audioCodec", ""))
+        ET.SubElement(aud, "channels").text = str(probe.get("audioChannels", 0))
+        ET.indent(tree, space="    ")
+        tree.write(nfo_path, encoding="unicode", xml_declaration=True)
+        return True
+    except Exception as e:
+        print(f"Failed to update fileinfo in {nfo_path}: {e}")
+        return False
 
 
 def save_nfo(movie: dict, data: dict, naming: str = "filename") -> str:

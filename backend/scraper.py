@@ -11,7 +11,8 @@ TMDB_BASE = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
 }
 
@@ -152,6 +153,23 @@ def tmdb_movie_details(tmdb_id: int) -> Optional[dict]:
         "countries": countries,
         "actors": actors,
     }
+
+
+def tmdb_find_by_imdb(imdb_id: str) -> Optional[dict]:
+    """Look up a movie on TMDB using its IMDB ID, then return full details."""
+    try:
+        data = _tmdb_get(f"/find/{imdb_id}", {"external_source": "imdb_id"})
+        results = data.get("movie_results", [])
+        if not results:
+            return None
+        tmdb_id = results[0]["id"]
+        details = tmdb_movie_details(tmdb_id)
+        if details:
+            details["imdbId"] = imdb_id
+        return details
+    except Exception as e:
+        print(f"TMDB find by IMDB ID failed for {imdb_id}: {e}")
+        return None
 
 
 # ---- IMDB Scraping ----

@@ -1,6 +1,6 @@
-import { Search, CheckCircle, AlertCircle, FileText, EyeOff, X, LayoutList, LayoutGrid } from "lucide-react";
+import { Search, CheckCircle, AlertCircle, FileText, EyeOff, X, LayoutList, LayoutGrid, ArrowUpDown } from "lucide-react";
 import { useState } from "react";
-import type { ScannedMovie } from "../types";
+import type { ScannedMovie, SortField, SortDir } from "../types";
 
 const API = "http://localhost:3457";
 
@@ -28,12 +28,30 @@ interface MovieListProps {
   loading: boolean;
   viewMode: "list" | "grid";
   onViewModeChange: (mode: "list" | "grid") => void;
+  sortField: SortField;
+  sortDir: SortDir;
+  onSortChange: (field: SortField, dir: SortDir) => void;
 }
 
-export function MovieList({ movies, selectedMovie, onSelect, onSearch, onIgnore, filter, onFilterChange, loading, viewMode, onViewModeChange }: MovieListProps) {
+function formatSize(bytes: number): string {
+  if (!bytes) return "";
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(1) + " GB";
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(0) + " MB";
+  return bytes + " B";
+}
+
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: "title", label: "Title" },
+  { value: "year", label: "Year" },
+  { value: "size", label: "File Size" },
+  { value: "resolution", label: "Resolution" },
+  { value: "status", label: "Status" },
+];
+
+export function MovieList({ movies, selectedMovie, onSelect, onSearch, onIgnore, filter, onFilterChange, loading, viewMode, onViewModeChange, sortField, sortDir, onSortChange }: MovieListProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const visibleMovies = searchQuery.trim()
+  const filtered = searchQuery.trim()
     ? movies.filter((m) => {
         const q = searchQuery.toLowerCase();
         return (
@@ -43,34 +61,64 @@ export function MovieList({ movies, selectedMovie, onSelect, onSearch, onIgnore,
       })
     : movies;
 
+  const visibleMovies = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    switch (sortField) {
+      case "title":
+        cmp = (a.movieData?.title || a.parsedTitle).localeCompare(b.movieData?.title || b.parsedTitle);
+        break;
+      case "year":
+        cmp = (a.movieData?.year || a.parsedYear || 0) - (b.movieData?.year || b.parsedYear || 0);
+        break;
+      case "size":
+        cmp = (a.fileSize ?? 0) - (b.fileSize ?? 0);
+        break;
+      case "resolution":
+        cmp = (a.height ?? 0) - (b.height ?? 0);
+        break;
+      case "status": {
+        const rank = (m: ScannedMovie) => m.ignored ? 0 : m.matched ? 2 : 1;
+        cmp = rank(a) - rank(b);
+        break;
+      }
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
   return (
-    <div className={`flex flex-col border-r border-surface-700 bg-surface-900/50 ${viewMode === "grid" ? "w-full" : "w-80"}`}>
-      <div className="p-3 border-b border-surface-700 space-y-2">
-        <div className="flex gap-2">
+    <div
+      className={`flex flex-col ${viewMode === "grid" ? "w-full" : "w-80"}`}
+      style={{borderRight: '2px solid #0a3d52', boxShadow: 'inset -1px 0 0 #3aa0c0', background: '#071e2e'}}
+    >
+      <div className="p-2 space-y-1.5" style={{borderBottom: '2px solid #0a3d52', boxShadow: 'inset 0 -1px 0 #3aa0c0', background: 'linear-gradient(to bottom, #0d3347, #071e2e)'}}>
+        <div className="flex gap-1.5">
           <div className="relative flex-1">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-surface-500 pointer-events-none" />
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{color: '#4e9ab4'}} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Filter movies…"
-              className="w-full rounded-lg bg-surface-800 border border-surface-700 pl-8 pr-7 py-1.5 text-xs text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500"
+              className="w-full pl-7 pr-6 py-1 text-xs focus:outline-none"
+              style={{background: '#040f18', border: '1px solid #0a3d52', borderTopColor: '#3aa0c0', borderLeftColor: '#3aa0c0', color: '#cce8f0'}}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-surface-500 hover:text-surface-300"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2"
+                style={{color: '#4e9ab4'}}
               >
-                <X size={12} />
+                <X size={11} />
               </button>
             )}
           </div>
           <button
             onClick={() => onViewModeChange(viewMode === "list" ? "grid" : "list")}
-            className="shrink-0 rounded-lg bg-surface-800 border border-surface-700 px-2 text-surface-400 hover:text-surface-200 transition-colors"
+            className="shrink-0 px-2 transition-colors"
+            style={{background: 'linear-gradient(to bottom, #144960, #0d3347)', border: '1px solid #0a3d52', borderTopColor: '#1d7fa0', borderLeftColor: '#1d7fa0', color: '#7ab8cc'}}
             title={viewMode === "list" ? "Switch to poster grid" : "Switch to list"}
           >
-            {viewMode === "list" ? <LayoutGrid size={14} /> : <LayoutList size={14} />}
+            {viewMode === "list" ? <LayoutGrid size={13} /> : <LayoutList size={13} />}
           </button>
         </div>
         <div className="flex gap-1">
@@ -78,84 +126,118 @@ export function MovieList({ movies, selectedMovie, onSelect, onSearch, onIgnore,
             <button
               key={f}
               onClick={() => onFilterChange(f)}
-              className={`flex-1 rounded px-2 py-1 text-xs font-medium capitalize transition-colors ${
-                filter === f
-                  ? "bg-blue-600 text-white"
-                  : "bg-surface-800 text-surface-400 hover:text-surface-200"
-              }`}
+              className="flex-1 py-0.5 text-xs font-medium capitalize transition-colors"
+              style={filter === f ? {
+                background: 'linear-gradient(to bottom, #0d3347, #1a6580)',
+                color: '#48cae4',
+                border: '1px solid #0a3d52',
+                borderTopColor: '#3aa0c0',
+                borderLeftColor: '#3aa0c0',
+              } : {
+                background: 'linear-gradient(to bottom, #144960, #0d3347)',
+                color: '#7ab8cc',
+                border: '1px solid #0a3d52',
+                borderTopColor: '#1d7fa0',
+                borderLeftColor: '#1d7fa0',
+              }}
             >
               {f}
             </button>
           ))}
         </div>
+        <div className="flex items-center gap-1">
+          <ArrowUpDown size={11} className="shrink-0" style={{color: '#4e9ab4'}} />
+          <select
+            value={sortField}
+            onChange={(e) => onSortChange(e.target.value as SortField, sortDir)}
+            className="flex-1 py-0.5 px-1 text-xs focus:outline-none"
+            style={{background: '#040f18', border: '1px solid #0a3d52', borderTopColor: '#3aa0c0', borderLeftColor: '#3aa0c0', color: '#cce8f0'}}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => onSortChange(sortField, sortDir === "asc" ? "desc" : "asc")}
+            className="px-1.5 py-0.5 text-xs transition-colors"
+            style={{background: 'linear-gradient(to bottom, #144960, #0d3347)', border: '1px solid #0a3d52', borderTopColor: '#1d7fa0', borderLeftColor: '#1d7fa0', color: '#7ab8cc'}}
+          >
+            {sortDir === "asc" ? "A→Z" : "Z→A"}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {movies.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-surface-500 p-6 text-center">
-            <FileText size={32} className="mb-3 opacity-50" />
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center" style={{color: '#4e9ab4'}}>
+            <FileText size={32} className="mb-3 opacity-40" />
             <p className="text-sm font-medium">No movies found</p>
-            <p className="text-xs mt-1">Add directories in Settings, then click Scan Folders</p>
+            <p className="text-xs mt-1" style={{color: '#2d7a96'}}>Add directories in Settings, then click Scan Folders</p>
           </div>
         ) : viewMode === "list" ? (
           visibleMovies.map((movie) => {
             const thumb = posterSrc(movie);
+            const isSelected = selectedMovie?.id === movie.id;
             return (
               <div
                 key={movie.id}
                 onClick={() => onSelect(movie)}
-                className={`flex items-center gap-3 p-2 cursor-pointer border-b border-surface-800 transition-colors ${
-                  selectedMovie?.id === movie.id
-                    ? "bg-blue-600/10 border-l-2 border-l-blue-500"
-                    : "hover:bg-surface-800/50 border-l-2 border-l-transparent"
-                }`}
+                className="flex items-center gap-2 p-1.5 cursor-pointer transition-colors"
+                style={isSelected ? {
+                  background: 'linear-gradient(to right, #0d3347, #144960)',
+                  borderLeft: '3px solid #48cae4',
+                  borderBottom: '1px solid #0a3d52',
+                } : {
+                  background: 'transparent',
+                  borderLeft: '3px solid transparent',
+                  borderBottom: '1px solid #071e2e',
+                }}
+                onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = '#0d3347'; }}
+                onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
               >
-                {/* Poster thumbnail */}
-                <div className="shrink-0 w-9 h-14 rounded overflow-hidden bg-surface-800 flex items-center justify-center">
+                <div className="shrink-0 w-8 h-12 overflow-hidden flex items-center justify-center" style={{border: '1px solid #0a3d52', background: '#040f18'}}>
                   {thumb ? (
                     <img src={thumb} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   ) : (
-                    <FileText size={14} className="text-surface-600" />
+                    <FileText size={13} style={{color: '#1d5f78'}} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-surface-100 truncate">
+                  <p className="text-xs font-medium truncate" style={{color: '#cce8f0'}}>
                     {movie.movieData?.title || movie.parsedTitle}
                   </p>
-                  <p className="text-xs text-surface-500 truncate mt-0.5">
-                    {movie.parsedYear || ""}
+                  <p className="text-xs truncate" style={{color: '#4e9ab4'}}>
+                    {movie.movieData?.year || movie.parsedYear || ""}
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2">
                     {movie.ignored ? (
-                      <span className="flex items-center gap-1 text-xs text-red-400"><EyeOff size={10} /> ignored</span>
+                      <span className="flex items-center gap-0.5 text-xs" style={{color: '#e07c30'}}><EyeOff size={9} /> ignored</span>
                     ) : movie.matched ? (
-                      <span className="flex items-center gap-1 text-xs text-emerald-400"><CheckCircle size={10} /> matched</span>
+                      <span className="flex items-center gap-0.5 text-xs" style={{color: '#2d9e6e'}}><CheckCircle size={9} /> matched</span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-amber-400"><AlertCircle size={10} /> unmatched</span>
+                      <span className="flex items-center gap-0.5 text-xs" style={{color: '#c07020'}}><AlertCircle size={9} /> unmatched</span>
                     )}
                     {movie.parts?.length > 1 && (
-                      <span className="text-xs text-purple-400">{movie.parts.length} parts</span>
+                      <span className="text-xs" style={{color: '#7ab8cc'}}>{movie.parts.length} parts</span>
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-0.5">
+                <div className="flex shrink-0 items-center">
                   <button
                     onClick={(e) => { e.stopPropagation(); onIgnore(movie, !movie.ignored); }}
-                    className={`rounded p-1.5 transition-colors ${
-                      movie.ignored
-                        ? "text-red-400 hover:bg-surface-700 hover:text-surface-300"
-                        : "text-surface-500 hover:bg-surface-700 hover:text-red-400"
-                    }`}
+                    className="p-1 transition-colors"
+                    style={{color: movie.ignored ? '#e07c30' : '#2d7a96'}}
                     title={movie.ignored ? "Unignore" : "Ignore"}
                   >
-                    <EyeOff size={14} />
+                    <EyeOff size={13} />
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onSearch(movie); }}
-                    className="rounded p-1.5 text-surface-400 hover:bg-surface-700 hover:text-blue-400 transition-colors"
+                    className="p-1 transition-colors"
+                    style={{color: '#2d7a96'}}
                     title="Search TMDB"
                   >
-                    <Search size={14} />
+                    <Search size={13} />
                   </button>
                 </div>
               </div>
@@ -163,7 +245,7 @@ export function MovieList({ movies, selectedMovie, onSelect, onSearch, onIgnore,
           })
         ) : (
           /* Poster grid view */
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 p-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 p-2">
             {visibleMovies.map((movie) => {
               const bg = fanartSrc(movie);
               const thumb = posterSrc(movie);
@@ -173,49 +255,50 @@ export function MovieList({ movies, selectedMovie, onSelect, onSearch, onIgnore,
                 <div
                   key={movie.id}
                   onClick={() => onSelect(movie)}
-                  className={`relative group cursor-pointer rounded-lg overflow-hidden flex flex-col transition-all ${
-                    isSelected ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-surface-950" : "hover:ring-1 hover:ring-surface-500"
-                  }`}
+                  className="relative group cursor-pointer flex flex-col transition-all"
+                  style={isSelected ? {
+                    border: '2px solid #48cae4',
+                    boxShadow: '0 0 6px #1a6580',
+                  } : {
+                    border: '2px solid #0a3d52',
+                    borderTopColor: '#1d7fa0',
+                    borderLeftColor: '#1d7fa0',
+                  }}
                 >
-                  {/* Poster */}
-                  <div className="aspect-[2/3] bg-surface-800 relative overflow-hidden">
+                  <div className="aspect-[2/3] relative overflow-hidden" style={{background: '#040f18'}}>
                     {thumb ? (
                       <img src={thumb} alt={title} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     ) : bg ? (
                       <img src={bg} alt={title} className="w-full h-full object-cover opacity-40" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <FileText size={24} className="text-surface-600" />
+                        <FileText size={24} style={{color: '#1d5f78'}} />
                       </div>
                     )}
-                    {/* Status dot */}
-                    <div className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
-                      movie.ignored ? "bg-red-500" : movie.matched ? "bg-emerald-500" : "bg-amber-500"
-                    }`} />
-                    {/* Hover overlay with action buttons */}
+                    <div className={`absolute top-1 right-1 w-2 h-2 rounded-full`}
+                      style={{background: movie.ignored ? '#e07c30' : movie.matched ? '#2d9e6e' : '#c07020'}} />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); onSearch(movie); }}
-                        className="rounded-full bg-blue-600 p-2 text-white hover:bg-blue-700 transition-colors"
+                        className="p-1.5"
+                        style={{background: '#0d4d66', border: '1px solid #3aa0c0', color: '#cce8f0'}}
                         title="Search TMDB"
                       >
-                        <Search size={14} />
+                        <Search size={13} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); onIgnore(movie, !movie.ignored); }}
-                        className={`rounded-full p-2 text-white transition-colors ${
-                          movie.ignored ? "bg-surface-600 hover:bg-surface-500" : "bg-red-700 hover:bg-red-600"
-                        }`}
+                        className="p-1.5"
+                        style={{background: movie.ignored ? '#1a0e00' : '#1a0e00', border: '1px solid #a05520', color: '#e07c30'}}
                         title={movie.ignored ? "Unignore" : "Ignore"}
                       >
-                        <EyeOff size={14} />
+                        <EyeOff size={13} />
                       </button>
                     </div>
                   </div>
-                  {/* Title bar */}
-                  <div className="bg-surface-900 px-1.5 py-1">
-                    <p className="text-xs font-medium text-surface-200 truncate leading-tight">{title}</p>
-                    {movie.parsedYear ? <p className="text-xs text-surface-500">{movie.parsedYear}</p> : null}
+                  <div className="px-1 py-0.5" style={{background: '#0d3347'}}>
+                    <p className="text-xs font-medium truncate leading-tight" style={{color: '#cce8f0'}}>{title}</p>
+                    {movie.movieData?.year || movie.parsedYear ? <p className="text-xs" style={{color: '#4e9ab4'}}>{movie.movieData?.year || movie.parsedYear}</p> : null}
                   </div>
                 </div>
               );

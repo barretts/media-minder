@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "./api";
-import type { ScannedMovie, AppSettings } from "./types";
+import type { ScannedMovie, AppSettings, SortField, SortDir } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { MovieList } from "./components/MovieList";
 import { MovieDetail } from "./components/MovieDetail";
@@ -8,8 +8,9 @@ import { SearchModal } from "./components/SearchModal";
 import { ImagePickerModal } from "./components/ImagePickerModal";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { StatusBar } from "./components/StatusBar";
+import { DuplicatesView } from "./components/DuplicatesView";
 
-type View = "movies" | "settings";
+type View = "movies" | "settings" | "duplicates";
 
 function App() {
   const [view, setView] = useState<View>("movies");
@@ -23,6 +24,10 @@ function App() {
   const [filter, setFilter] = useState<"all" | "unmatched" | "matched" | "ignored">("all");
   const [showIgnored, setShowIgnored] = useState(false);
   const [listViewMode, setListViewMode] = useState<"list" | "grid">("list");
+  const [sortField, setSortField] = useState<SortField>("title");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [duplicateGroups, setDuplicateGroups] = useState<Record<string, ScannedMovie[]>>({});
+  const [duplicateCount, setDuplicateCount] = useState(0);
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(console.error);
@@ -41,6 +46,8 @@ function App() {
         setLoading(false);
         return;
       }
+      // Fetch duplicates after scan
+      api.getDuplicates().then((d) => { setDuplicateGroups(d.groups || {}); setDuplicateCount(d.totalDuplicates || 0); }).catch(() => {});
       setStatus(`Found ${result.total} movies. Auto-matching ${unmatched.length} via TMDB...`);
       const matchResult = await api.autoMatch();
       setMovies(matchResult.movies);
@@ -112,15 +119,54 @@ function App() {
   const handleIgnore = useCallback(async (movieId: string, ignored: boolean) => {
     try {
       const result = await api.ignoreMovie(movieId, ignored);
-      setMovies((prev) =>
-        prev.map((m) => (m.id === movieId ? result.movie : m))
-      );
-      if (selectedMovie?.id === movieId) setSelectedMovie(result.movie);
+      setMovies((prev) => {
+        const updated = prev.map((m) => (m.id === movieId ? result.movie : m));
+        // Auto-select next movie when ignoring the currently selected one
+        if (ignored && selectedMovie?.id === movieId) {
+          const visible = updated.filter((m) => {
+            if (m.ignored && !showIgnored && filter !== "ignored") return false;
+            if (filter === "unmatched") return !m.hasNfo && !m.matched && !m.ignored;
+            if (filter === "matched") return m.matched;
+            if (filter === "ignored") return m.ignored;
+            return true;
+          });
+          // Apply same sort as MovieList
+          visible.sort((a, b) => {
+            let cmp = 0;
+            switch (sortField) {
+              case "title":
+                cmp = (a.movieData?.title || a.parsedTitle).localeCompare(b.movieData?.title || b.parsedTitle);
+                break;
+              case "year":
+                cmp = (a.movieData?.year || a.parsedYear || 0) - (b.movieData?.year || b.parsedYear || 0);
+                break;
+              case "size":
+                cmp = (a.fileSize ?? 0) - (b.fileSize ?? 0);
+                break;
+              case "resolution":
+                cmp = (a.height ?? 0) - (b.height ?? 0);
+                break;
+              case "status": {
+                const rank = (m: ScannedMovie) => m.ignored ? 0 : m.matched ? 2 : 1;
+                cmp = rank(a) - rank(b);
+                break;
+              }
+            }
+            return sortDir === "asc" ? cmp : -cmp;
+          });
+          const curIdx = visible.findIndex((m) => m.id === movieId);
+          const next = visible[curIdx + 1] || visible[curIdx - 1] || null;
+          setSelectedMovie(next);
+        } else if (selectedMovie?.id === movieId) {
+          setSelectedMovie(result.movie);
+        }
+        return updated;
+      });
       setStatus(ignored ? `Ignored "${result.movie.parsedTitle}"` : `Unignored "${result.movie.parsedTitle}"`);
     } catch (e: any) {
       setStatus(`Failed: ${e.message}`);
     }
-  }, [selectedMovie]);
+  }, [selectedMovie, showIgnored, filter, sortField, sortDir]);
 
   const handleUnset = useCallback(async () => {
     if (!selectedMovie) return;
@@ -160,10 +206,22 @@ function App() {
         onViewChange={setView}
         onScan={handleScan}
         onAutoMatch={handleAutoMatch}
+        onProbeAll={async () => {
+          setLoading(true);
+          setStatus("Probing files with ffprobe...");
+          try {
+            const result = await api.probeAll();
+            setStatus(`Probe complete: ${result.probed} probed, ${result.skipped} skipped, ${result.failed} failed`);
+          } catch (e: any) {
+            setStatus(`Probe failed: ${e.message}`);
+          }
+          setLoading(false);
+        }}
         loading={loading}
         movieCount={movies.length}
         unmatchedCount={movies.filter((m) => !m.hasNfo && !m.matched && !m.ignored).length}
         ignoredCount={movies.filter((m) => m.ignored).length}
+        duplicateCount={duplicateCount}
         showIgnored={showIgnored}
         onToggleShowIgnored={() => setShowIgnored((v) => !v)}
       />
@@ -182,6 +240,9 @@ function App() {
               loading={loading}
               viewMode={listViewMode}
               onViewModeChange={setListViewMode}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSortChange={(f, d) => { setSortField(f); setSortDir(d); }}
             />
             {listViewMode === "list" && <MovieDetail
               movie={selectedMovie}
@@ -213,6 +274,43 @@ function App() {
               onUnset={handleUnset}
             />}
           </div>
+        ) : view === "duplicates" ? (
+          <DuplicatesView
+            groups={duplicateGroups}
+            loading={loading}
+            onRefresh={async () => {
+              setLoading(true);
+              try {
+                const d = await api.getDuplicates();
+                setDuplicateGroups(d.groups || {});
+                setDuplicateCount(d.totalDuplicates || 0);
+                setStatus(`Found ${Object.keys(d.groups || {}).length} duplicate groups`);
+              } catch (e: any) {
+                setStatus(`Failed: ${e.message}`);
+              }
+              setLoading(false);
+            }}
+            onIgnore={async (movieId: string, ignored: boolean) => {
+              await handleIgnore(movieId, ignored);
+              // Refresh duplicates to reflect new state
+              const d = await api.getDuplicates();
+              setDuplicateGroups(d.groups || {});
+              setDuplicateCount(d.totalDuplicates || 0);
+            }}
+            onDelete={async (movieId: string, fileName: string) => {
+              try {
+                const result = await api.deleteMovieFile(movieId);
+                setMovies((prev) => prev.filter((m) => m.id !== movieId));
+                setStatus(`Deleted "${fileName}" (${result.deleted?.length ?? 0} files removed)`);
+                // Refresh duplicates
+                const d = await api.getDuplicates();
+                setDuplicateGroups(d.groups || {});
+                setDuplicateCount(d.totalDuplicates || 0);
+              } catch (e: any) {
+                setStatus(`Delete failed: ${e.message}`);
+              }
+            }}
+          />
         ) : (
           <SettingsPanel
             settings={settings}

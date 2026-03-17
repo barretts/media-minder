@@ -2,9 +2,51 @@
 
 import os
 import re
+import json
+import subprocess
 from pathlib import Path
 from typing import Optional
 from nfo import read_nfo
+
+
+def _probe_video(filepath: str) -> dict:
+    """Use ffprobe to get resolution, bitrate, codec, duration. Returns empty dict if ffprobe unavailable."""
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "quiet", "-print_format", "json",
+                "-show_format", "-show_streams", filepath,
+            ],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
+        )
+        if result.returncode != 0:
+            return {}
+        data = json.loads(result.stdout)
+        video_stream = next((s for s in data.get("streams", []) if s.get("codec_type") == "video"), None)
+        fmt = data.get("format", {})
+        info = {}
+        if video_stream:
+            w = video_stream.get("width", 0)
+            h = video_stream.get("height", 0)
+            if w and h:
+                info["resolution"] = f"{w}x{h}"
+                info["width"] = w
+                info["height"] = h
+            info["videoCodec"] = video_stream.get("codec_name", "")
+        audio_stream = next((s for s in data.get("streams", []) if s.get("codec_type") == "audio"), None)
+        if audio_stream:
+            info["audioCodec"] = audio_stream.get("codec_name", "")
+            channels = audio_stream.get("channels", 0)
+            info["audioChannels"] = channels
+        duration = fmt.get("duration")
+        if duration:
+            info["duration"] = int(float(duration))
+        bitrate = fmt.get("bit_rate")
+        if bitrate:
+            info["bitrate"] = int(bitrate)
+        return info
+    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError, Exception):
+        return {}
 
 VIDEO_EXTENSIONS = {
     ".mkv", ".mp4", ".avi", ".m4v", ".wmv", ".flv", ".mov",
@@ -203,6 +245,7 @@ def scan_directories(directories: list[str]) -> list[dict]:
                     "tmdbId": tmdb_id,
                     "imdbId": imdb_id,
                     "movieData": movie_data,
+                    "fileSize": size,
                     "_partNum": part_num,
                 })
 
