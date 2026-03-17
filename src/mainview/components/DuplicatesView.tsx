@@ -53,70 +53,86 @@ export function DuplicatesView({ groups, loading, onRefresh, onDelete, onIgnore 
   const [confirmDelete, setConfirmDelete] = useState<{ movieId: string; fileName: string; folderPath: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const mb: React.CSSProperties = {
+    background: '#bebebe',
+    borderTop: '2px solid #ffffff',
+    borderLeft: '2px solid #ffffff',
+    borderBottom: '2px solid #404040',
+    borderRight: '2px solid #404040',
+    color: '#000000',
+    cursor: 'pointer',
+    fontSize: '11px',
+    padding: '2px 10px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+  };
+
+  const resColor = (h: number) => {
+    if (h >= 2160) return {background: '#e8d8f8', color: '#440088', border: '1px solid #aa88cc'};
+    if (h >= 1080) return {background: '#d8e8f8', color: '#003388', border: '1px solid #8899cc'};
+    if (h >= 720) return {background: '#d8f0f8', color: '#004466', border: '1px solid #88aacc'};
+    return {background: '#d0d0d0', color: '#444444', border: '1px solid #808080'};
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-lg font-bold text-surface-100 flex items-center gap-2">
-            <Copy size={20} className="text-amber-400" />
-            Duplicate Movies
-          </h2>
-          <p className="text-xs text-surface-500 mt-1">
-            Movies with the same title and year found in different locations
-          </p>
+    <div className="flex-1 overflow-y-auto p-3" style={{background: '#bebebe'}}>
+      {/* Title bar */}
+      <div className="px-3 py-1.5 mb-3 flex items-center justify-between"
+        style={{background: 'linear-gradient(to right, #847bbd, #524a8c)'}}>
+        <div className="flex items-center gap-2">
+          <Copy size={13} style={{color: '#ffffff'}} />
+          <span style={{color: '#ffffff', fontSize: '12px', fontWeight: 'bold'}}>Duplicate Movies</span>
         </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="rounded-lg bg-surface-800 border border-surface-700 px-3 py-1.5 text-xs text-surface-300 hover:text-surface-100 hover:bg-surface-700 transition-colors disabled:opacity-50"
-        >
+        <button onClick={onRefresh} disabled={loading} style={{...mb, opacity: loading ? 0.5 : 1, fontSize: '10px', padding: '1px 8px'}}>
           Refresh
         </button>
       </div>
 
+      <p style={{fontSize: '10px', color: '#555555', marginBottom: '8px'}}>
+        Movies with the same title and year found in multiple locations
+      </p>
+
       {groupKeys.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-surface-500">
-          <Copy size={40} className="mb-4 opacity-30" />
-          <p className="text-sm font-medium">No duplicates found</p>
-          <p className="text-xs mt-1">Scan folders first, then check for duplicates</p>
+        <div className="flex flex-col items-center justify-center py-16" style={{color: '#666666'}}>
+          <Copy size={32} className="mb-3 opacity-30" />
+          <p style={{fontSize: '12px', fontWeight: 'bold'}}>No duplicates found</p>
+          <p style={{fontSize: '11px', marginTop: '4px'}}>Scan folders first, then check for duplicates</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {groupKeys.map((key) => {
             const group = groups[key];
             const poster = posterSrc(group[0]);
             return (
-              <div key={key} className="rounded-xl border border-surface-700 bg-surface-900/60 overflow-hidden">
-                {/* Group header */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-surface-800/50 border-b border-surface-700">
+              <div key={key}
+                style={{background: '#bebebe', borderTop: '2px solid #ffffff', borderLeft: '2px solid #ffffff', borderBottom: '2px solid #404040', borderRight: '2px solid #404040'}}>
+                {/* Group header - purple title bar */}
+                <div className="flex items-center gap-2 px-2 py-1"
+                  style={{background: 'linear-gradient(to right, #6b6295, #3d3670)'}}>
                   {poster && (
-                    <img src={poster} alt="" className="w-8 h-12 rounded object-cover shrink-0" />
+                    <img src={poster} alt="" className="w-6 h-9 object-cover shrink-0"
+                      style={{border: '1px solid #ffffff'}} />
                   )}
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-surface-100 truncate">{key}</h3>
-                    <p className="text-xs text-amber-400 mt-0.5">{group.length} copies found</p>
+                    <h3 className="font-bold truncate" style={{fontSize: '11px', color: '#ffffff'}}>{key}</h3>
+                    <p style={{fontSize: '10px', color: '#ddccff'}}>{group.length} copies found</p>
                   </div>
                 </div>
 
                 {/* File detail table */}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full" style={{fontSize: '11px', borderCollapse: 'collapse'}}>
                     <thead>
-                      <tr className="text-surface-500 border-b border-surface-800">
-                        <th className="text-left px-4 py-2 font-medium">File Name</th>
-                        <th className="text-left px-4 py-2 font-medium">Location</th>
-                        <th className="text-right px-4 py-2 font-medium">Size</th>
-                        <th className="text-center px-4 py-2 font-medium">Resolution</th>
-                        <th className="text-center px-4 py-2 font-medium">Video</th>
-                        <th className="text-center px-4 py-2 font-medium">Audio</th>
-                        <th className="text-right px-4 py-2 font-medium">Bitrate</th>
-                        <th className="text-right px-4 py-2 font-medium">Duration</th>
-                        <th className="px-4 py-2 w-10"></th>
+                      <tr style={{background: '#adb5c6', borderBottom: '1px solid #808080'}}>
+                        {['File Name','Location','Size','Resolution','Video','Audio','Bitrate','Duration',''].map(h => (
+                          <th key={h} className={h === 'Size' || h === 'Bitrate' || h === 'Duration' ? 'text-right' : h === 'Resolution' || h === 'Video' || h === 'Audio' ? 'text-center' : 'text-left'}
+                            style={{padding: '2px 6px', fontWeight: 'bold', color: '#000000', fontSize: '10px'}}>{h}</th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {group.map((movie, i) => {
-                        // Highlight the "best" file (highest resolution, then largest)
+                      {group.map((movie) => {
                         const isBest = group.length > 1 &&
                           group.every((other) =>
                             other.id === movie.id ||
@@ -124,91 +140,72 @@ export function DuplicatesView({ groups, loading, onRefresh, onDelete, onIgnore 
                             ((movie.height || 0) === (other.height || 0) && (movie.fileSize || 0) >= (other.fileSize || 0))
                           );
                         return (
-                          <tr
-                            key={movie.id}
-                            className={`border-b border-surface-800/50 transition-colors hover:bg-surface-800/30 ${
-                              isBest ? "bg-emerald-900/10" : ""
-                            }`}
+                          <tr key={movie.id}
+                            style={{background: isBest ? '#e8f8e8' : 'transparent', borderBottom: '1px solid #d0d0d0'}}
+                            onMouseEnter={e => (e.currentTarget.style.background = isBest ? '#d8f0d8' : '#d8e8f0')}
+                            onMouseLeave={e => (e.currentTarget.style.background = isBest ? '#e8f8e8' : 'transparent')}
                           >
-                            <td className="px-4 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <Film size={12} className="text-surface-600 shrink-0" />
-                                <span className="text-surface-200 truncate max-w-[280px]" title={movie.fileName}>
-                                  {movie.fileName}
-                                </span>
+                            <td style={{padding: '3px 6px', maxWidth: '240px'}}>
+                              <div className="flex items-center gap-1">
+                                <Film size={10} style={{color: '#555555', flexShrink: 0}} />
+                                <span className="truncate" style={{color: '#000000'}} title={movie.fileName}>{movie.fileName}</span>
                                 {isBest && (
-                                  <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-emerald-600/20 text-emerald-400 font-medium">
-                                    BEST
-                                  </span>
+                                  <span className="shrink-0 px-1" style={{fontSize: '9px', background: '#006600', color: '#ffffff', fontWeight: 'bold'}}>BEST</span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-2.5">
-                              <span className="text-surface-400 truncate max-w-[240px] block" title={movie.folderPath}>
-                                {movie.folderPath}
-                              </span>
+                            <td style={{padding: '3px 6px', maxWidth: '200px'}}>
+                              <span className="truncate block" style={{color: '#444444', fontSize: '10px'}} title={movie.folderPath}>{movie.folderPath}</span>
                             </td>
-                            <td className="px-4 py-2.5 text-right">
-                              <span className="text-surface-200 flex items-center justify-end gap-1">
-                                <HardDrive size={11} className="text-surface-600" />
+                            <td className="text-right" style={{padding: '3px 6px', whiteSpace: 'nowrap'}}>
+                              <span className="flex items-center justify-end gap-0.5" style={{color: '#000000'}}>
+                                <HardDrive size={9} style={{color: '#666666'}} />
                                 {formatSize(movie.fileSize)}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                (movie.height || 0) >= 2160
-                                  ? "bg-purple-600/20 text-purple-300"
-                                  : (movie.height || 0) >= 1080
-                                  ? "bg-blue-600/20 text-blue-300"
-                                  : (movie.height || 0) >= 720
-                                  ? "bg-cyan-600/20 text-cyan-300"
-                                  : "bg-surface-700 text-surface-400"
-                              }`}>
-                                <Monitor size={10} className="inline mr-1" />
-                                {movie.resolution || "—"}
+                            <td className="text-center" style={{padding: '3px 6px'}}>
+                              <span className="inline-block px-1" style={{fontSize: '10px', fontWeight: 'bold', ...resColor(movie.height || 0)}}>
+                                <Monitor size={9} className="inline mr-0.5" />
+                                {movie.resolution || '—'}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-center text-surface-300">
-                              {movie.videoCodec ? movie.videoCodec.toUpperCase() : "—"}
+                            <td className="text-center" style={{padding: '3px 6px', color: '#000000'}}>
+                              {movie.videoCodec ? movie.videoCodec.toUpperCase() : '—'}
                             </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <span className="text-surface-300 flex items-center justify-center gap-1">
-                                <Volume2 size={10} className="text-surface-600" />
-                                {movie.audioCodec ? movie.audioCodec.toUpperCase() : "—"}
-                                {movie.audioChannels ? ` ${channelLabel(movie.audioChannels)}` : ""}
+                            <td className="text-center" style={{padding: '3px 6px'}}>
+                              <span className="flex items-center justify-center gap-0.5" style={{color: '#000000'}}>
+                                <Volume2 size={9} style={{color: '#666666'}} />
+                                {movie.audioCodec ? movie.audioCodec.toUpperCase() : '—'}
+                                {movie.audioChannels ? ` ${channelLabel(movie.audioChannels)}` : ''}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-right">
-                              <span className="text-surface-300 flex items-center justify-end gap-1">
-                                <Zap size={10} className="text-surface-600" />
+                            <td className="text-right" style={{padding: '3px 6px', whiteSpace: 'nowrap', color: '#000000'}}>
+                              <span className="flex items-center justify-end gap-0.5">
+                                <Zap size={9} style={{color: '#666666'}} />
                                 {formatBitrate(movie.bitrate)}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5 text-right">
-                              <span className="text-surface-300 flex items-center justify-end gap-1">
-                                <Clock size={10} className="text-surface-600" />
+                            <td className="text-right" style={{padding: '3px 6px', whiteSpace: 'nowrap', color: '#000000'}}>
+                              <span className="flex items-center justify-end gap-0.5">
+                                <Clock size={9} style={{color: '#666666'}} />
                                 {formatDuration(movie.duration)}
                               </span>
                             </td>
-                            <td className="px-4 py-2.5">
+                            <td style={{padding: '3px 4px'}}>
                               <div className="flex items-center justify-center gap-0.5">
                                 <button
                                   onClick={() => onIgnore(movie.id, !movie.ignored)}
-                                  className={`rounded p-1.5 transition-colors ${
-                                    movie.ignored
-                                      ? "text-red-400 hover:bg-surface-700 hover:text-surface-300"
-                                      : "text-surface-500 hover:text-amber-400 hover:bg-amber-900/20"
-                                  }`}
-                                  title={movie.ignored ? "Unignore" : "Ignore (keep file, skip NFO/images)"}
+                                  style={{color: movie.ignored ? '#884400' : '#555555', background: 'transparent', cursor: 'pointer', padding: '2px'}}
+                                  title={movie.ignored ? 'Unignore' : 'Ignore'}
                                 >
-                                  <EyeOff size={13} />
+                                  <EyeOff size={12} />
                                 </button>
                                 <button
                                   onClick={() => setConfirmDelete({ movieId: movie.id, fileName: movie.fileName, folderPath: movie.folderPath })}
-                                  className="rounded p-1.5 text-surface-500 hover:text-red-400 hover:bg-red-900/20 transition-colors"
+                                  style={{color: '#660000', background: 'transparent', cursor: 'pointer', padding: '2px'}}
                                   title="Delete this file"
                                 >
-                                  <Trash2 size={13} />
+                                  <Trash2 size={12} />
                                 </button>
                               </div>
                             </td>
@@ -224,57 +221,54 @@ export function DuplicatesView({ groups, loading, onRefresh, onDelete, onIgnore 
         </div>
       )}
 
-      {/* Delete confirmation dialog */}
+      {/* Delete confirmation dialog - Motif style */}
       {confirmDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-surface-900 border border-surface-700 rounded-xl shadow-2xl w-full max-w-md mx-4">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-surface-700">
-              <div className="rounded-full bg-red-600/20 p-2">
-                <AlertTriangle size={20} className="text-red-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{background: 'rgba(50,40,80,0.6)'}}>
+          <div style={{
+            background: '#bebebe',
+            borderTop: '2px solid #ffffff',
+            borderLeft: '2px solid #ffffff',
+            borderBottom: '2px solid #404040',
+            borderRight: '2px solid #404040',
+            boxShadow: '4px 4px 8px rgba(0,0,0,0.5)',
+            width: '400px',
+          }}>
+            {/* Title bar */}
+            <div className="flex items-center justify-between px-2 py-1"
+              style={{background: 'linear-gradient(to right, #cc4444, #882222)'}}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={11} style={{color: '#ffffff'}} />
+                <span style={{color: '#ffffff', fontSize: '11px', fontWeight: 'bold'}}>Delete Movie File</span>
               </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-surface-100">Delete Movie File</h3>
-                <p className="text-xs text-surface-500 mt-0.5">This action cannot be undone</p>
-              </div>
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="text-surface-500 hover:text-surface-300 transition-colors"
-              >
-                <X size={16} />
+              <button onClick={() => setConfirmDelete(null)} style={{...mb, padding: '1px 5px', fontSize: '10px', background: '#adb5c6'}}>
+                <X size={10} />
               </button>
             </div>
-            <div className="px-5 py-4">
-              <p className="text-sm text-surface-300">
-                Are you sure you want to permanently delete this file and its companion files (NFO, poster, fanart)?
+            <div className="p-4">
+              <p style={{fontSize: '11px', color: '#000000', marginBottom: '8px'}}>
+                Permanently delete this file and its companion files (NFO, poster, fanart)?
               </p>
-              <div className="mt-3 rounded-lg bg-surface-800 px-3 py-2">
-                <p className="text-xs font-medium text-surface-200 break-all">{confirmDelete.fileName}</p>
-                <p className="text-xs text-surface-500 break-all mt-0.5">{confirmDelete.folderPath}</p>
+              <div className="p-2" style={{background: '#d0d0d0', borderTop: '2px solid #404040', borderLeft: '2px solid #404040', borderBottom: '2px solid #ffffff', borderRight: '2px solid #ffffff'}}>
+                <p className="font-medium break-all" style={{fontSize: '11px', color: '#000000'}}>{confirmDelete.fileName}</p>
+                <p className="break-all" style={{fontSize: '10px', color: '#444444', marginTop: '2px'}}>{confirmDelete.folderPath}</p>
               </div>
+              <p style={{fontSize: '10px', color: '#880000', marginTop: '6px', fontWeight: 'bold'}}>This action cannot be undone.</p>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-3 border-t border-surface-800">
-              <button
-                onClick={() => setConfirmDelete(null)}
-                disabled={deleting}
-                className="rounded-lg px-4 py-2 text-xs font-medium text-surface-300 bg-surface-800 hover:bg-surface-700 transition-colors disabled:opacity-50"
-              >
+            <div className="flex justify-end gap-2 px-4 py-2" style={{borderTop: '1px solid #808080'}}>
+              <button onClick={() => setConfirmDelete(null)} disabled={deleting} style={{...mb, opacity: deleting ? 0.5 : 1}}>
                 Cancel
               </button>
               <button
                 onClick={async () => {
                   setDeleting(true);
-                  try {
-                    await onDelete(confirmDelete.movieId, confirmDelete.fileName);
-                  } finally {
-                    setDeleting(false);
-                    setConfirmDelete(null);
-                  }
+                  try { await onDelete(confirmDelete.movieId, confirmDelete.fileName); }
+                  finally { setDeleting(false); setConfirmDelete(null); }
                 }}
                 disabled={deleting}
-                className="rounded-lg px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                style={{...mb, background: '#ffcccc', color: '#660000', opacity: deleting ? 0.5 : 1}}
               >
-                <Trash2 size={12} />
-                {deleting ? "Deleting..." : "Delete Permanently"}
+                <Trash2 size={11} />
+                {deleting ? 'Deleting...' : 'Delete Permanently'}
               </button>
             </div>
           </div>

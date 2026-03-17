@@ -43,171 +43,190 @@ export function SettingsPanel({ settings, onSave, onSaveImmediate }: SettingsPan
     onSaveImmediate?.(updated);
   };
 
+  const mb: React.CSSProperties = {
+    background: '#bebebe',
+    borderTop: '2px solid #ffffff',
+    borderLeft: '2px solid #ffffff',
+    borderBottom: '2px solid #404040',
+    borderRight: '2px solid #404040',
+    color: '#000000',
+    cursor: 'pointer',
+    fontSize: '11px',
+    padding: '2px 10px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+  };
+  const inset: React.CSSProperties = {
+    background: '#ffffff',
+    borderTop: '2px solid #404040',
+    borderLeft: '2px solid #404040',
+    borderBottom: '2px solid #ffffff',
+    borderRight: '2px solid #ffffff',
+    color: '#000000',
+    fontSize: '11px',
+    padding: '3px 6px',
+    outline: 'none',
+  };
+  const sectionHeader: React.CSSProperties = {
+    background: 'linear-gradient(to right, #847bbd, #524a8c)',
+    color: '#ffffff',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    padding: '2px 8px',
+    marginBottom: '6px',
+  };
+  const panel: React.CSSProperties = {
+    background: '#bebebe',
+    borderTop: '2px solid #404040',
+    borderLeft: '2px solid #404040',
+    borderBottom: '2px solid #ffffff',
+    borderRight: '2px solid #ffffff',
+    padding: '8px',
+    marginBottom: '12px',
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto p-8 max-w-2xl">
-      <h2 className="text-2xl font-bold text-surface-100 mb-6">Settings</h2>
+    <div className="flex-1 overflow-y-auto p-4 max-w-2xl" style={{background: '#bebebe'}}>
+      {/* Window title bar */}
+      <div className="px-3 py-1.5 mb-4 flex items-center gap-2" style={{background: 'linear-gradient(to right, #847bbd, #524a8c)'}}>
+        <span style={{color: '#ffffff', fontSize: '12px', fontWeight: 'bold'}}>Settings</span>
+      </div>
 
       {/* Title Cleanup Strings */}
-      <section className="mb-8">
-        <h3 className="text-sm font-semibold text-surface-300 mb-1 uppercase tracking-wider">Title Cleanup Strings</h3>
-        <p className="text-xs text-surface-500 mb-3">These strings are stripped from parsed movie titles before searching TMDB/IMDB</p>
-        <div className="space-y-2 mb-3">
-          {local.cleanupStrings.map((s) => (
-            <div key={s} className="flex items-center gap-2 bg-surface-800 rounded-lg px-3 py-2">
-              <span className="flex-1 text-sm text-surface-200 font-mono">{s}</span>
-              <button
-                onClick={() => {
-                  const updated = { ...local, cleanupStrings: local.cleanupStrings.filter((c) => c !== s) };
-                  setLocal(updated);
-                  onSaveImmediate?.(updated);
-                }}
-                className="shrink-0 text-surface-500 hover:text-red-400 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ))}
-          {local.cleanupStrings.length === 0 && (
-            <p className="text-sm text-surface-500 italic">No cleanup strings added yet</p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newCleanup}
-            onChange={(e) => setNewCleanup(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
+      <section style={{marginBottom: '16px'}}>
+        <div style={sectionHeader}>Title Cleanup Strings</div>
+        <div style={panel}>
+          <p style={{fontSize: '10px', color: '#444444', marginBottom: '6px'}}>Strings stripped from parsed movie titles before searching TMDB/IMDB</p>
+          <div className="space-y-1 mb-2">
+            {local.cleanupStrings.map((s) => (
+              <div key={s} className="flex items-center gap-2 px-2 py-1"
+                style={{background: '#d0d0d0', borderTop: '1px solid #ffffff', borderLeft: '1px solid #ffffff', borderBottom: '1px solid #808080', borderRight: '1px solid #808080'}}>
+                <span className="flex-1 font-mono" style={{fontSize: '11px', color: '#000000'}}>{s}</span>
+                <button
+                  onClick={() => {
+                    const updated = { ...local, cleanupStrings: local.cleanupStrings.filter((c) => c !== s) };
+                    setLocal(updated);
+                    onSaveImmediate?.(updated);
+                  }}
+                  style={{color: '#660000', background: 'transparent', cursor: 'pointer'}}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {local.cleanupStrings.length === 0 && (
+              <p style={{fontSize: '11px', color: '#666666', fontStyle: 'italic'}}>No cleanup strings added yet</p>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <input type="text" value={newCleanup}
+              onChange={(e) => setNewCleanup(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const val = newCleanup.trim();
+                  if (val && !local.cleanupStrings.includes(val)) {
+                    const updated = { ...local, cleanupStrings: [...local.cleanupStrings, val] };
+                    setLocal(updated); setNewCleanup(""); onSaveImmediate?.(updated);
+                  }
+                }
+              }}
+              placeholder='e.g. from ISO'
+              className="flex-1 font-mono focus:outline-none"
+              style={inset}
+            />
+            <button
+              onClick={() => {
                 const val = newCleanup.trim();
                 if (val && !local.cleanupStrings.includes(val)) {
                   const updated = { ...local, cleanupStrings: [...local.cleanupStrings, val] };
-                  setLocal(updated);
-                  setNewCleanup("");
-                  onSaveImmediate?.(updated);
+                  setLocal(updated); setNewCleanup(""); onSaveImmediate?.(updated);
                 }
-              }
-            }}
-            placeholder='e.g.  from ISO'
-            className="flex-1 rounded-lg bg-surface-800 border border-surface-700 px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500 font-mono"
-          />
-          <button
-            onClick={() => {
-              const val = newCleanup.trim();
-              if (val && !local.cleanupStrings.includes(val)) {
-                const updated = { ...local, cleanupStrings: [...local.cleanupStrings, val] };
-                setLocal(updated);
-                setNewCleanup("");
-                onSaveImmediate?.(updated);
-              }
-            }}
-            disabled={!newCleanup.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-surface-700 px-3 py-2 text-sm text-surface-200 hover:bg-surface-600 disabled:opacity-50 transition-colors"
-          >
-            <Plus size={14} /> Add
-          </button>
+              }}
+              disabled={!newCleanup.trim()}
+              style={{...mb, opacity: !newCleanup.trim() ? 0.5 : 1}}
+            >
+              <Plus size={11} /> Add
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Movie Directories */}
-      <section className="mb-8">
-        <h3 className="text-sm font-semibold text-surface-300 mb-3 uppercase tracking-wider">Movie Directories</h3>
-        <div className="space-y-2 mb-3">
-          {local.movieDirectories.map((dir) => (
-            <div key={dir} className="flex items-center gap-2 bg-surface-800 rounded-lg px-3 py-2">
-              <FolderOpen size={14} className="text-surface-400 shrink-0" />
-              <span className="flex-1 text-sm text-surface-200 font-mono truncate">{dir}</span>
-              <button
-                onClick={() => removeDirectory(dir)}
-                className="shrink-0 text-surface-500 hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-          {local.movieDirectories.length === 0 && (
-            <p className="text-sm text-surface-500 italic">No directories added yet</p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newDir}
-            onChange={(e) => setNewDir(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addDirectory()}
-            placeholder="C:\Movies or /mnt/movies"
-            className="flex-1 rounded-lg bg-surface-800 border border-surface-700 px-3 py-2 text-sm text-surface-100 placeholder-surface-500 focus:outline-none focus:border-blue-500"
-          />
-          <button
-            onClick={addDirectory}
-            disabled={!newDir.trim()}
-            className="flex items-center gap-1.5 rounded-lg bg-surface-700 px-3 py-2 text-sm text-surface-200 hover:bg-surface-600 disabled:opacity-50 transition-colors"
-          >
-            <Plus size={14} /> Add
-          </button>
+      <section style={{marginBottom: '16px'}}>
+        <div style={sectionHeader}>Movie Directories</div>
+        <div style={panel}>
+          <div className="space-y-1 mb-2">
+            {local.movieDirectories.map((dir) => (
+              <div key={dir} className="flex items-center gap-2 px-2 py-1"
+                style={{background: '#d0d0d0', borderTop: '1px solid #ffffff', borderLeft: '1px solid #ffffff', borderBottom: '1px solid #808080', borderRight: '1px solid #808080'}}>
+                <FolderOpen size={12} style={{color: '#555555', flexShrink: 0}} />
+                <span className="flex-1 font-mono truncate" style={{fontSize: '11px', color: '#000000'}}>{dir}</span>
+                <button onClick={() => removeDirectory(dir)} style={{color: '#660000', background: 'transparent', cursor: 'pointer'}}>
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+            {local.movieDirectories.length === 0 && (
+              <p style={{fontSize: '11px', color: '#666666', fontStyle: 'italic'}}>No directories added yet</p>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <input type="text" value={newDir}
+              onChange={(e) => setNewDir(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addDirectory()}
+              placeholder="C:\Movies or /mnt/movies"
+              className="flex-1 focus:outline-none"
+              style={inset}
+            />
+            <button onClick={addDirectory} disabled={!newDir.trim()}
+              style={{...mb, opacity: !newDir.trim() ? 0.5 : 1}}>
+              <Plus size={11} /> Add
+            </button>
+          </div>
         </div>
       </section>
 
       {/* Naming Convention */}
-      <section className="mb-8">
-        <h3 className="text-sm font-semibold text-surface-300 mb-3 uppercase tracking-wider">Naming Convention</h3>
-        <div className="rounded-lg border border-surface-700 bg-surface-800 px-4 py-3">
-          <p className="text-sm text-surface-200">
-            <span className="font-medium text-blue-400">Filename-based</span> — NFO and images are named after the movie file
+      <section style={{marginBottom: '16px'}}>
+        <div style={sectionHeader}>Naming Convention</div>
+        <div style={panel}>
+          <p style={{fontSize: '11px', color: '#000000'}}>
+            <strong>Filename-based</strong> — NFO and images named after the movie file
           </p>
-          <p className="text-xs text-surface-500 mt-1 font-mono">MovieName.nfo, MovieName-poster.jpg, MovieName-fanart.jpg</p>
+          <p className="font-mono" style={{fontSize: '10px', color: '#444444', marginTop: '4px'}}>MovieName.nfo, MovieName-poster.jpg, MovieName-fanart.jpg</p>
         </div>
       </section>
 
-      {/* Auto-Save Options */}
-      <section className="mb-8">
-        <h3 className="text-sm font-semibold text-surface-300 mb-3 uppercase tracking-wider">Auto-Save</h3>
-        <p className="text-xs text-surface-500 mb-3">Automatically save NFO files and images when movies are matched</p>
-        <div className="space-y-3">
-          {[
-            { key: "autoSaveNfo" as const, label: "Auto-save NFO files" },
-            { key: "autoSaveImages" as const, label: "Auto-save images (poster, fanart)" },
-          ].map(({ key, label }) => (
-            <label key={key} className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={local[key]}
-                onChange={(e) => setLocal({ ...local, [key]: e.target.checked })}
-                className="w-4 h-4 rounded border-surface-600 bg-surface-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
-              />
-              <span className="text-sm text-surface-200">{label}</span>
-            </label>
-          ))}
+      {/* Auto-Save + Download Options */}
+      <section style={{marginBottom: '16px'}}>
+        <div style={sectionHeader}>Options</div>
+        <div style={panel}>
+          <p style={{fontSize: '10px', color: '#444444', marginBottom: '6px'}}>Automatically save NFO files and images when movies are matched</p>
+          <div className="space-y-2">
+            {[
+              { key: "autoSaveNfo" as const, label: "Auto-save NFO files" },
+              { key: "autoSaveImages" as const, label: "Auto-save images (poster, fanart)" },
+              { key: "downloadPoster" as const, label: "Download Posters" },
+              { key: "downloadFanart" as const, label: "Download Fanart/Backdrops" },
+              { key: "downloadActorThumbs" as const, label: "Download Actor Thumbnails" },
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={local[key]}
+                  onChange={(e) => setLocal({ ...local, [key]: e.target.checked })}
+                  style={{width: '13px', height: '13px', cursor: 'pointer'}}
+                />
+                <span style={{fontSize: '11px', color: '#000000'}}>{label}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Download Options */}
-      <section className="mb-8">
-        <h3 className="text-sm font-semibold text-surface-300 mb-3 uppercase tracking-wider">Download Options</h3>
-        <div className="space-y-3">
-          {[
-            { key: "downloadPoster" as const, label: "Download Posters" },
-            { key: "downloadFanart" as const, label: "Download Fanart/Backdrops" },
-            { key: "downloadActorThumbs" as const, label: "Download Actor Thumbnails" },
-          ].map(({ key, label }) => (
-            <label key={key} className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={local[key]}
-                onChange={(e) => setLocal({ ...local, [key]: e.target.checked })}
-                className="w-4 h-4 rounded border-surface-600 bg-surface-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-0"
-              />
-              <span className="text-sm text-surface-200">{label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      {/* Save */}
-      <button
-        onClick={() => onSave(local)}
-        className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-      >
-        <Save size={14} /> Save Settings
+      <button onClick={() => onSave(local)} style={mb}>
+        <Save size={11} /> Save Settings
       </button>
     </div>
   );
