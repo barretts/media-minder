@@ -32,131 +32,124 @@ export function MovieDetail({ movie, onSearch, onSaveNfo, onDownloadImages, onIg
     ? `http://localhost:3457/api/file?path=${encodeURIComponent(movie.posterPath)}&t=${movie.posterTs ?? 0}`
     : (data?.thumbUrl || data?.posterUrl);
 
-  const solBtn = {
-    primary: {background: 'linear-gradient(to bottom, #1a7a9a, #0d4d66)', color: '#cce8f0', border: '1px solid #0a3d52', borderTopColor: '#3aa0c0', borderLeftColor: '#3aa0c0'} as React.CSSProperties,
-    secondary: {background: 'linear-gradient(to bottom, #144960, #0d3347)', color: '#7ab8cc', border: '1px solid #0a3d52', borderTopColor: '#1d7fa0', borderLeftColor: '#1d7fa0'} as React.CSSProperties,
-    danger: {background: 'linear-gradient(to bottom, #4a1a00, #2a0e00)', color: '#e07c30', border: '1px solid #a05520', borderTopColor: '#d07840', borderLeftColor: '#d07840'} as React.CSSProperties,
+  const mb: React.CSSProperties = {
+    background: '#bebebe',
+    borderTop: '2px solid #ffffff',
+    borderLeft: '2px solid #ffffff',
+    borderBottom: '2px solid #404040',
+    borderRight: '2px solid #404040',
+    color: '#000000',
+    cursor: 'pointer',
+    fontSize: '11px',
+    padding: '2px 8px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto" style={{background: '#071e2e'}}>
+    <div className="flex flex-1 flex-col overflow-y-auto" style={{background: '#bebebe'}}>
       {/* Fanart Banner */}
       {fanartSrc && (
-        <div className="relative h-44 shrink-0 overflow-hidden">
+        <div className="relative h-36 shrink-0 overflow-hidden">
           <img
             src={fanartSrc}
             alt="Fanart"
-            className="w-full h-full object-cover opacity-60"
+            className="w-full h-full object-cover"
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
-          <div className="absolute inset-0" style={{background: 'linear-gradient(to top, #071e2e 0%, #071e2e20 60%, transparent 100%)'}} />
+          <div className="absolute inset-0" style={{background: 'linear-gradient(to top, rgba(190,190,190,0.9) 0%, transparent 60%)'}} />
         </div>
       )}
 
-      <div className="p-4 space-y-4">
+      <div className="p-3 space-y-3">
         {/* Header */}
-        <div className="flex gap-4">
+        <div className="flex gap-3">
           {posterSrc && (
             <img
               src={posterSrc}
               alt="Poster"
-              className="w-28 h-40 object-cover shrink-0"
-              style={{border: '2px solid #0a3d52', borderTopColor: '#3aa0c0', borderLeftColor: '#3aa0c0'}}
+              className="w-24 h-36 object-cover shrink-0"
+              style={{borderTop: '2px solid #ffffff', borderLeft: '2px solid #ffffff', borderBottom: '2px solid #404040', borderRight: '2px solid #404040'}}
               onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           )}
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold" style={{color: '#48cae4', textShadow: '0 1px 3px #040f18'}}>
-              {data?.title || movie.parsedTitle}
-            </h2>
+            {/* Title bar style header */}
+            <div className="px-2 py-1 mb-2" style={{background: 'linear-gradient(to right, #847bbd, #524a8c)', color: '#ffffff'}}>
+              <h2 className="font-bold truncate" style={{fontSize: '12px'}}>
+                {data?.title || movie.parsedTitle}
+              </h2>
+            </div>
             {data?.originalTitle && data.originalTitle !== data.title && (
-              <p className="text-xs mt-0.5" style={{color: '#4e9ab4'}}>{data.originalTitle}</p>
+              <p style={{fontSize: '11px', color: '#333333'}}>{data.originalTitle}</p>
             )}
             {data?.tagline && (
-              <p className="text-xs italic mt-1" style={{color: '#4e9ab4'}}>{data.tagline}</p>
+              <p className="italic" style={{fontSize: '11px', color: '#444444'}}>{data.tagline}</p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3 mt-2">
+            <div className="flex flex-wrap items-center gap-3 mt-1">
               {data?.rating ? (
-                <span className="flex items-center gap-1 text-xs" style={{color: '#c8a020'}}>
-                  <Star size={11} fill="currentColor" /> {data.rating.toFixed(1)}
+                <span className="flex items-center gap-1" style={{fontSize: '11px', color: '#664400'}}>
+                  <Star size={10} fill="currentColor" /> {data.rating.toFixed(1)}
                 </span>
               ) : null}
               {(data?.year || movie.parsedYear) && (
-                <span className="flex items-center gap-1 text-xs" style={{color: '#7ab8cc'}}>
-                  <Calendar size={11} /> {data?.year || movie.parsedYear}
+                <span className="flex items-center gap-1" style={{fontSize: '11px', color: '#333333'}}>
+                  <Calendar size={10} /> {data?.year || movie.parsedYear}
                 </span>
               )}
               {data?.runtime ? (
-                <span className="flex items-center gap-1 text-xs" style={{color: '#7ab8cc'}}>
-                  <Clock size={11} /> {data.runtime} min
+                <span className="flex items-center gap-1" style={{fontSize: '11px', color: '#333333'}}>
+                  <Clock size={10} /> {data.runtime} min
                 </span>
               ) : null}
               {data?.mpaa && (
-                <span className="text-xs px-1.5 py-0.5" style={{color: '#7ab8cc', border: '1px solid #1d5f78'}}>
+                <span className="px-1" style={{fontSize: '10px', color: '#333333', border: '1px solid #808080', background: '#d0d0d0'}}>
                   {data.mpaa}
                 </span>
               )}
             </div>
 
             {data?.genres && data.genres.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
+              <div className="flex flex-wrap gap-1 mt-1">
                 {data.genres.map((g) => (
-                  <span key={g} className="flex items-center gap-1 text-xs px-1.5 py-0.5"
-                    style={{background: '#0d3347', color: '#7ab8cc', border: '1px solid #1d5f78'}}>
-                    <Tag size={9} /> {g}
+                  <span key={g} className="flex items-center gap-0.5 px-1"
+                    style={{fontSize: '10px', background: '#adb5c6', color: '#000000', border: '1px solid #808080'}}>
+                    <Tag size={8} /> {g}
                   </span>
                 ))}
               </div>
             )}
 
             {data?.imdbId && (
-              <p className="text-xs mt-2" style={{color: '#2d7a96'}}>
+              <p style={{fontSize: '10px', color: '#555555', marginTop: '4px'}}>
                 IMDB: {data.imdbId} &middot; TMDB: {data.tmdbId}
               </p>
             )}
 
-            {/* Ignored banner */}
             {movie.ignored && (
-              <div className="flex items-center gap-2 mt-2 px-2 py-1.5"
-                style={{background: '#1a0e00', border: '1px solid #a05520', borderTopColor: '#d07840', borderLeftColor: '#d07840'}}>
-                <EyeOff size={12} style={{color: '#e07c30'}} />
-                <span className="text-xs" style={{color: '#c06020'}}>Ignored — skipped during auto-match</span>
+              <div className="flex items-center gap-1 mt-2 px-2 py-1"
+                style={{background: '#ffeecc', border: '1px solid #cc8800', fontSize: '11px', color: '#664400'}}>
+                <EyeOff size={11} />
+                <span>Ignored — skipped during auto-match</span>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-1.5 mt-3">
-              <button onClick={onSearch} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium" style={solBtn.primary}>
-                <Search size={11} /> {data ? "Change Match" : "Search"}
-              </button>
-              {data && (
-                <button onClick={onUnset} className="flex items-center gap-1 px-2.5 py-1 text-xs" style={solBtn.danger} title="Remove metadata">
-                  <X size={11} /> Unset
-                </button>
-              )}
+            <div className="flex flex-wrap gap-1 mt-2">
+              <button onClick={onSearch} style={mb}><Search size={10} /> {data ? "Change Match" : "Search"}</button>
+              {data && <button onClick={onUnset} style={{...mb, background: '#ffcccc', color: '#660000'}} title="Remove metadata"><X size={10} /> Unset</button>}
               {data && (
                 <>
-                  <button onClick={onSaveNfo} className="flex items-center gap-1 px-2.5 py-1 text-xs" style={solBtn.secondary}>
-                    <Save size={11} /> Save NFO
-                  </button>
-                  <button onClick={onDownloadImages} className="flex items-center gap-1 px-2.5 py-1 text-xs" style={solBtn.secondary}>
-                    <Download size={11} /> Images
-                  </button>
-                  <button onClick={() => onSelectImages("poster")} className="flex items-center gap-1 px-2.5 py-1 text-xs" style={solBtn.secondary}>
-                    <Image size={11} /> Poster
-                  </button>
-                  <button onClick={() => onSelectImages("fanart")} className="flex items-center gap-1 px-2.5 py-1 text-xs" style={solBtn.secondary}>
-                    <Image size={11} /> Fanart
-                  </button>
+                  <button onClick={onSaveNfo} style={mb}><Save size={10} /> Save NFO</button>
+                  <button onClick={onDownloadImages} style={mb}><Download size={10} /> Images</button>
+                  <button onClick={() => onSelectImages("poster")} style={mb}><Image size={10} /> Poster</button>
+                  <button onClick={() => onSelectImages("fanart")} style={mb}><Image size={10} /> Fanart</button>
                 </>
               )}
-              <button
-                onClick={() => onIgnore(!movie.ignored)}
-                className="flex items-center gap-1 px-2.5 py-1 text-xs"
-                style={movie.ignored ? solBtn.secondary : solBtn.danger}
-              >
-                {movie.ignored ? <Eye size={11} /> : <EyeOff size={11} />}
+              <button onClick={() => onIgnore(!movie.ignored)} style={mb}>
+                {movie.ignored ? <Eye size={10} /> : <EyeOff size={10} />}
                 {movie.ignored ? "Unignore" : "Ignore"}
               </button>
             </div>
@@ -165,48 +158,52 @@ export function MovieDetail({ movie, onSearch, onSaveNfo, onDownloadImages, onIg
 
         {/* Plot */}
         {data?.plot && (
-          <div style={{borderTop: '1px solid #0a3d52', paddingTop: '12px'}}>
-            <h3 className="text-xs font-semibold mb-1 uppercase tracking-wider" style={{color: '#48cae4'}}>Plot</h3>
-            <p className="text-xs leading-relaxed" style={{color: '#7ab8cc'}}>{data.plot}</p>
+          <div style={{borderTop: '1px solid #808080', paddingTop: '8px'}}>
+            <div className="px-1 py-0.5 mb-1" style={{background: '#adb5c6', fontSize: '10px', fontWeight: 'bold', color: '#000000', textTransform: 'uppercase', letterSpacing: '0.05em'}}>Plot</div>
+            <p style={{fontSize: '11px', color: '#000000', lineHeight: '1.5'}}>{data.plot}</p>
           </div>
         )}
 
         {/* Crew */}
-        {data?.directors && data.directors.length > 0 && (
-          <div>
-            <h3 className="text-xs font-semibold mb-0.5 uppercase tracking-wider" style={{color: '#48cae4'}}>Director</h3>
-            <p className="text-xs" style={{color: '#7ab8cc'}}>{data.directors.join(", ")}</p>
-          </div>
-        )}
-        {data?.writers && data.writers.length > 0 && (
-          <div>
-            <h3 className="text-xs font-semibold mb-0.5 uppercase tracking-wider" style={{color: '#48cae4'}}>Writers</h3>
-            <p className="text-xs" style={{color: '#7ab8cc'}}>{data.writers.join(", ")}</p>
+        {((data?.directors?.length ?? 0) > 0 || (data?.writers?.length ?? 0) > 0) && (
+          <div style={{borderTop: '1px solid #808080', paddingTop: '8px'}}>
+            {data?.directors && data.directors.length > 0 && (
+              <div className="mb-1">
+                <span style={{fontSize: '10px', fontWeight: 'bold', color: '#000000', textTransform: 'uppercase'}}>Director: </span>
+                <span style={{fontSize: '11px', color: '#333333'}}>{data.directors.join(", ")}</span>
+              </div>
+            )}
+            {data?.writers && data.writers.length > 0 && (
+              <div>
+                <span style={{fontSize: '10px', fontWeight: 'bold', color: '#000000', textTransform: 'uppercase'}}>Writers: </span>
+                <span style={{fontSize: '11px', color: '#333333'}}>{data.writers.join(", ")}</span>
+              </div>
+            )}
           </div>
         )}
 
         {/* Cast */}
         {data?.actors && data.actors.length > 0 && (
-          <div>
-            <h3 className="text-xs font-semibold mb-1.5 flex items-center gap-1 uppercase tracking-wider" style={{color: '#48cae4'}}>
-              <Users size={11} /> Cast
-            </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-1.5">
+          <div style={{borderTop: '1px solid #808080', paddingTop: '8px'}}>
+            <div className="px-1 py-0.5 mb-1 flex items-center gap-1" style={{background: '#adb5c6', fontSize: '10px', fontWeight: 'bold', color: '#000000', textTransform: 'uppercase'}}>
+              <Users size={10} /> Cast
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-1">
               {data.actors.slice(0, 12).map((actor) => (
-                <div key={actor.name} className="flex items-center gap-2 p-1.5"
-                  style={{background: '#0d3347', border: '1px solid #0a3d52', borderTopColor: '#1d7fa0', borderLeftColor: '#1d7fa0'}}>
+                <div key={actor.name} className="flex items-center gap-1.5 p-1"
+                  style={{background: '#d0d0d0', borderTop: '1px solid #ffffff', borderLeft: '1px solid #ffffff', borderBottom: '1px solid #808080', borderRight: '1px solid #808080'}}>
                   {actor.thumb ? (
                     <img src={actor.thumb} alt={actor.name}
-                      className="w-7 h-7 object-cover shrink-0"
-                      style={{border: '1px solid #1d5f78'}}
+                      className="w-6 h-6 object-cover shrink-0"
+                      style={{border: '1px solid #808080'}}
                       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                     />
                   ) : (
-                    <div className="w-7 h-7 shrink-0" style={{background: '#071e2e', border: '1px solid #1d5f78'}} />
+                    <div className="w-6 h-6 shrink-0" style={{background: '#adb5c6', border: '1px solid #808080'}} />
                   )}
                   <div className="min-w-0">
-                    <p className="text-xs font-medium truncate" style={{color: '#cce8f0'}}>{actor.name}</p>
-                    <p className="text-xs truncate" style={{color: '#4e9ab4'}}>{actor.role}</p>
+                    <p className="font-medium truncate" style={{fontSize: '10px', color: '#000000'}}>{actor.name}</p>
+                    <p className="truncate" style={{fontSize: '10px', color: '#444444'}}>{actor.role}</p>
                   </div>
                 </div>
               ))}
@@ -215,25 +212,25 @@ export function MovieDetail({ movie, onSearch, onSaveNfo, onDownloadImages, onIg
         )}
 
         {/* File Info */}
-        <div style={{borderTop: '1px solid #0a3d52', paddingTop: '12px'}}>
-          <h3 className="text-xs font-semibold mb-1 uppercase tracking-wider" style={{color: '#48cae4'}}>File</h3>
+        <div style={{borderTop: '1px solid #808080', paddingTop: '8px'}}>
+          <div className="px-1 py-0.5 mb-1" style={{background: '#adb5c6', fontSize: '10px', fontWeight: 'bold', color: '#000000', textTransform: 'uppercase'}}>File</div>
           {movie.parts?.length > 1 ? (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {movie.parts.map((p) => (
-                <div key={p.filePath} className="flex items-center gap-2">
-                  <Film size={10} style={{color: '#7ab8cc'}} className="shrink-0" />
-                  <span className="text-xs font-medium w-8" style={{color: '#7ab8cc'}}>CD{p.partNum}</span>
-                  <span className="text-xs font-mono truncate" style={{color: '#4e9ab4'}}>{p.fileName}</span>
+                <div key={p.filePath} className="flex items-center gap-1">
+                  <Film size={9} style={{color: '#555555'}} className="shrink-0" />
+                  <span className="font-medium" style={{fontSize: '10px', color: '#333333', minWidth: '28px'}}>CD{p.partNum}</span>
+                  <span className="font-mono truncate" style={{fontSize: '10px', color: '#444444'}}>{p.fileName}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs font-mono break-all" style={{color: '#4e9ab4'}}>{movie.filePath}</p>
+            <p className="font-mono break-all" style={{fontSize: '10px', color: '#444444'}}>{movie.filePath}</p>
           )}
-          <div className="flex gap-4 mt-1.5 text-xs" style={{color: '#2d7a96'}}>
-            <span>NFO: {movie.hasNfo ? <span style={{color: '#2d9e6e'}}>Yes</span> : "No"}</span>
-            <span>Poster: {movie.hasPoster ? <span style={{color: '#2d9e6e'}}>Yes</span> : "No"}</span>
-            <span>Fanart: {movie.hasFanart ? <span style={{color: '#2d9e6e'}}>Yes</span> : "No"}</span>
+          <div className="flex gap-3 mt-1" style={{fontSize: '10px', color: '#333333'}}>
+            <span>NFO: {movie.hasNfo ? <span style={{color: '#006600'}}>Yes</span> : <span style={{color: '#660000'}}>No</span>}</span>
+            <span>Poster: {movie.hasPoster ? <span style={{color: '#006600'}}>Yes</span> : <span style={{color: '#660000'}}>No</span>}</span>
+            <span>Fanart: {movie.hasFanart ? <span style={{color: '#006600'}}>Yes</span> : <span style={{color: '#660000'}}>No</span>}</span>
           </div>
         </div>
       </div>

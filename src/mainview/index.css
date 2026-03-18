@@ -4,37 +4,81 @@
 
 @layer base {
   body {
-    @apply bg-surface-900 text-sol-text m-0 antialiased;
+    @apply m-0;
     font-family: 'Lucida Sans', 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 13px;
+    font-size: 12px;
+    background-color: #adb5c6;
+    color: #000000;
+    /* Solaris CDE desktop - tiled SOLARIS watermark */
+    background-image: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 28px,
+        rgba(140,133,185,0.18) 28px,
+        rgba(140,133,185,0.18) 29px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 28px,
+        rgba(140,133,185,0.18) 28px,
+        rgba(140,133,185,0.18) 29px
+      );
   }
   ::-webkit-scrollbar {
     width: 16px;
     height: 16px;
   }
   ::-webkit-scrollbar-track {
-    background: #0d3347;
-    border-left: 1px solid #0a2535;
+    background: #bebebe;
+    border: 1px solid #808080;
   }
   ::-webkit-scrollbar-thumb {
-    background: linear-gradient(to right, #2d8aaa, #1a6580, #0f4a66);
-    border: 1px solid #0a3d52;
-    border-top-color: #3aa0c0;
-    border-left-color: #3aa0c0;
+    background: #bebebe;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #404040;
+    border-right: 2px solid #404040;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(to right, #3aaac8, #2080a0, #145870);
+    background: #cfcfcf;
   }
   ::-webkit-scrollbar-button {
-    background: linear-gradient(to bottom, #1a6580, #0d3347);
-    border: 1px solid #0a3d52;
-    border-top-color: #3aa0c0;
-    border-left-color: #3aa0c0;
+    background: #bebebe;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #404040;
+    border-right: 2px solid #404040;
     display: block;
     height: 16px;
     width: 16px;
   }
   ::-webkit-scrollbar-corner {
-    background: #0d3347;
+    background: #bebebe;
+  }
+  /* Motif-style raised widget */
+  .motif-raised {
+    background: #bebebe;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #404040;
+    border-right: 2px solid #404040;
+  }
+  /* Motif-style sunken/inset widget */
+  .motif-sunken {
+    background: #bebebe;
+    border-top: 2px solid #404040;
+    border-left: 2px solid #404040;
+    border-bottom: 2px solid #ffffff;
+    border-right: 2px solid #ffffff;
+  }
+  /* Motif window panel */
+  .motif-window {
+    background: #bebebe;
+    border-top: 2px solid #ffffff;
+    border-left: 2px solid #ffffff;
+    border-bottom: 2px solid #404040;
+    border-right: 2px solid #404040;
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
   }
 }

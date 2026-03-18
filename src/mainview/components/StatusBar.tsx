@@ -8,15 +8,16 @@ interface StatusBarProps {
 export function StatusBar({ status, loading }: StatusBarProps) {
   return (
     <div
-      className="flex items-center gap-2 px-4 py-1.5"
+      className="flex items-center gap-2 px-3 py-1"
       style={{
-        borderTop: '2px solid #0a3d52',
-        boxShadow: 'inset 0 2px 0 #3aa0c0',
-        background: 'linear-gradient(to bottom, #0d3347, #071e2e)',
+        background: '#29294a',
+        borderTop: '2px solid #404040',
+        color: '#e8e8f8',
+        fontSize: '11px',
       }}
     >
-      {loading && <Loader2 size={12} className="animate-spin" style={{color: '#48cae4'}} />}
-      <span className="text-xs truncate" style={{color: '#4e9ab4'}}>{status}</span>
+      {loading && <Loader2 size={11} className="animate-spin" style={{color: '#adb5c6'}} />}
+      <span className="truncate">{status}</span>
     </div>
   );
 }
