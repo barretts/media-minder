@@ -31,6 +31,7 @@ pub fn load_settings() -> AppSettings {
         language: "en-US".to_string(),
         ignored_paths: vec![],
         cleanup_strings: vec![],
+        ignored_duplicate_groups: vec![],
     }
 }
 

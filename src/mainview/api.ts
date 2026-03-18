@@ -22,4 +22,5 @@ export const api = {
   deleteMovieFile: (movieId: string) => invoke("delete_movie_file", { movieId }) as Promise<any>,
   probeAll: () => invoke("probe_all") as Promise<any>,
   deleteImage: (movieId: string, imageType: "poster" | "fanart") => invoke("delete_image_cmd", { movieId, imageType }) as Promise<any>,
+  setIgnoredDuplicateGroups: (groups: string[]) => invoke("set_ignored_duplicate_groups", { groups }) as Promise<any>,
 };

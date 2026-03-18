@@ -269,8 +269,10 @@ pub fn scan_directories_streaming(
             let (parsed_title, parsed_year) = parse_movie_name(parse_input);
 
             let nfo_path = find_companion(&filepath, &folder_path, &[".nfo"]);
-            let poster_path = find_image(&filepath, &folder_path, "poster");
-            let fanart_path = find_image(&filepath, &folder_path, "fanart");
+            let poster_path = find_image(&filepath, &folder_path, "poster")
+                .filter(|p| Path::new(p).is_file());
+            let fanart_path = find_image(&filepath, &folder_path, "fanart")
+                .filter(|p| Path::new(p).is_file());
 
             let mut movie_data = None;
             let mut matched = false;
