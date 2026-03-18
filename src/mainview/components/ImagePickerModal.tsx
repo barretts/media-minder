@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Loader2, Download, Check, Image } from "lucide-react";
+import { X, Loader2, Download, Check, Image, Trash2 } from "lucide-react";
 import { api } from "../api";
 import type { ScannedMovie } from "../types";
 
@@ -53,7 +53,19 @@ export function ImagePickerModal({ movie, initialTab = "poster", onClose, onSave
     setSaving(null);
   };
 
+  const handleDelete = async (type: "poster" | "fanart") => {
+    setSaving("__delete__");
+    try {
+      const result = await api.deleteImage(movie.id, type);
+      onSaved(result.movie);
+    } catch (e: any) {
+      setError(e.message);
+    }
+    setSaving(null);
+  };
+
   const images = tab === "poster" ? posters : fanarts;
+  const hasExisting = tab === "poster" ? movie.hasPoster : movie.hasFanart;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -97,9 +109,36 @@ export function ImagePickerModal({ movie, initialTab = "poster", onClose, onSave
             <div className="flex flex-col items-center justify-center py-16 text-surface-500">
               <Image size={36} className="mb-3 opacity-40" />
               <p className="text-sm">No {tab} images available</p>
+              {hasExisting && (
+                <button
+                  onClick={() => handleDelete(tab)}
+                  disabled={saving === "__delete__"}
+                  className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg bg-red-900/60 hover:bg-red-800 text-red-300 text-sm transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                  {saving === "__delete__" ? "Deleting..." : `Delete existing ${tab}`}
+                </button>
+              )}
             </div>
           ) : (
             <div className={`grid gap-3 ${tab === "poster" ? "grid-cols-4 sm:grid-cols-5 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-3"}`}>
+              {/* None / Delete option */}
+              <div
+                className={`relative rounded-lg overflow-hidden border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors
+                  ${tab === "poster" ? "aspect-[2/3]" : "aspect-video"}
+                  ${hasExisting ? "border-red-700 hover:border-red-500 bg-red-950/30 hover:bg-red-900/30" : "border-surface-600 bg-surface-800/30 opacity-40 cursor-default"}`}
+                onClick={() => hasExisting && !saving && handleDelete(tab)}
+                title={hasExisting ? `Remove ${tab}` : `No ${tab} to remove`}
+              >
+                {saving === "__delete__" ? (
+                  <Loader2 size={20} className="animate-spin text-red-400" />
+                ) : (
+                  <Trash2 size={20} className={hasExisting ? "text-red-400" : "text-surface-600"} />
+                )}
+                <span className={`text-xs mt-1.5 font-medium ${hasExisting ? "text-red-400" : "text-surface-600"}`}>
+                  None
+                </span>
+              </div>
               {images.map((entry) => {
                 const isSaving = saving === entry.url;
                 const isSaved = saved === entry.url;

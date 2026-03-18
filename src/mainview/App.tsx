@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "./api";
 import type { ScannedMovie, AppSettings, SortField, SortDir } from "./types";
 import { Sidebar } from "./components/Sidebar";
@@ -28,6 +29,7 @@ function App() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [duplicateGroups, setDuplicateGroups] = useState<Record<string, ScannedMovie[]>>({});
   const [duplicateCount, setDuplicateCount] = useState(0);
+  const [ignoredDuplicateGroups, setIgnoredDuplicateGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(console.error);
@@ -36,10 +38,39 @@ function App() {
   const handleScan = useCallback(async () => {
     setLoading(true);
     setStatus("Scanning directories...");
+    setMovies([]);
+    setSelectedMovie(null);
+    let progressCount = 0;
+
+    // Listen for progressive scan results
+    const unlisten = await listen<{ movies: ScannedMovie[] }>("scan-progress", (event) => {
+      const batch = event.payload.movies;
+      progressCount += batch.length;
+      setMovies(prev => {
+        const all = [...prev, ...batch];
+        // Compute duplicates client-side from accumulated movies
+        const groups: Record<string, ScannedMovie[]> = {};
+        for (const m of all) {
+          if (m.ignored) continue;
+          const key = `${(m.movieData?.title || m.parsedTitle)} (${m.parsedYear ?? "?"})`;
+          (groups[key] ??= []).push(m);
+        }
+        const dupes: Record<string, ScannedMovie[]> = {};
+        let dupeTotal = 0;
+        for (const [k, g] of Object.entries(groups)) {
+          if (g.length >= 2) { dupes[k] = g; dupeTotal += g.length; }
+        }
+        setDuplicateGroups(dupes);
+        setDuplicateCount(dupeTotal);
+        return all;
+      });
+      setStatus(`Scanning... ${progressCount} movies found`);
+    });
+
     try {
       const result = await api.scan();
+      unlisten();
       setMovies(result.movies);
-      setSelectedMovie(null);
       const unmatched = result.movies.filter((m: ScannedMovie) => !m.hasNfo && !m.matched);
       if (unmatched.length === 0) {
         setStatus(`Found ${result.total} movies — all already matched`);
@@ -62,7 +93,8 @@ function App() {
         : "";
       setStatus(`Done: ${succeeded} matched out of ${unmatched.length}${failedMsg}`);
     } catch (e: any) {
-      setStatus(`Scan failed: ${e.message}`);
+      unlisten();
+      setStatus(`Scan failed: ${e.message ?? e}`);
     }
     setLoading(false);
   }, []);
@@ -277,6 +309,7 @@ function App() {
         ) : view === "duplicates" ? (
           <DuplicatesView
             groups={duplicateGroups}
+            ignoredGroups={ignoredDuplicateGroups}
             loading={loading}
             onRefresh={async () => {
               setLoading(true);
@@ -290,22 +323,50 @@ function App() {
               }
               setLoading(false);
             }}
-            onIgnore={async (movieId: string, ignored: boolean) => {
-              await handleIgnore(movieId, ignored);
-              // Refresh duplicates to reflect new state
-              const d = await api.getDuplicates();
-              setDuplicateGroups(d.groups || {});
-              setDuplicateCount(d.totalDuplicates || 0);
+            onIgnoreGroup={(groupKey: string, ignored: boolean) => {
+              setIgnoredDuplicateGroups(prev => {
+                const next = new Set(prev);
+                if (ignored) next.add(groupKey); else next.delete(groupKey);
+                return next;
+              });
+            }}
+            onIgnore={(movieId: string, ignored: boolean) => {
+              // Optimistic: remove from groups immediately
+              setDuplicateGroups(prev => {
+                const next: Record<string, ScannedMovie[]> = {};
+                let total = 0;
+                for (const [key, group] of Object.entries(prev)) {
+                  const filtered = group.filter(m => m.id !== movieId);
+                  if (filtered.length >= 2) {
+                    next[key] = filtered;
+                    total += filtered.length;
+                  }
+                }
+                setDuplicateCount(total);
+                return next;
+              });
+              // Fire backend in background
+              handleIgnore(movieId, ignored);
             }}
             onDelete={async (movieId: string, fileName: string) => {
+              // Optimistic: remove from groups immediately
+              setDuplicateGroups(prev => {
+                const next: Record<string, ScannedMovie[]> = {};
+                let total = 0;
+                for (const [key, group] of Object.entries(prev)) {
+                  const filtered = group.filter(m => m.id !== movieId);
+                  if (filtered.length >= 2) {
+                    next[key] = filtered;
+                    total += filtered.length;
+                  }
+                }
+                setDuplicateCount(total);
+                return next;
+              });
               try {
                 const result = await api.deleteMovieFile(movieId);
                 setMovies((prev) => prev.filter((m) => m.id !== movieId));
                 setStatus(`Deleted "${fileName}" (${result.deleted?.length ?? 0} files removed)`);
-                // Refresh duplicates
-                const d = await api.getDuplicates();
-                setDuplicateGroups(d.groups || {});
-                setDuplicateCount(d.totalDuplicates || 0);
               } catch (e: any) {
                 setStatus(`Delete failed: ${e.message}`);
               }

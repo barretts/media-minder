@@ -1,0 +1,31 @@
+[package]
+name = "mediaminder"
+version = "1.0.0"
+description = "Movie library manager"
+authors = ["barrett"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+tauri-plugin-log = "2"
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+scraper = "0.22"
+quick-xml = { version = "0.37", features = ["serialize"] }
+walkdir = "2"
+regex = "1"
+dirs = "6"
+uuid = { version = "1", features = ["v4"] }
+urlencoding = "2"
