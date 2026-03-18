@@ -1,9 +1,13 @@
 # Dependencies
 node_modules/
 
+.windsurf
+
 # Build output
 dist/
 build/
+release/
+*.spec
 
 # Python
 __pycache__/
