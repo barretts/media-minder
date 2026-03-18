@@ -5,6 +5,14 @@ import os
 import threading
 import time
 
+# Hide the console window immediately on Windows (PyInstaller console=True build)
+if sys.platform == "win32" and getattr(sys, "frozen", False):
+    try:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+    except Exception:
+        pass
+
 # When running as a PyInstaller bundle, _MEIPASS points to the temp extract dir.
 # In dev, use the project root.
 if getattr(sys, "frozen", False):

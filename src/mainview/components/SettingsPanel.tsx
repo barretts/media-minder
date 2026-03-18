@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Save, Plus, Trash2, FolderOpen, X } from "lucide-react";
 import type { AppSettings } from "../types";
 
