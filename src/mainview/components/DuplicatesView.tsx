@@ -1,3 +1,4 @@
+import React from "react";
 import { Copy, HardDrive, Film, Monitor, Volume2, Clock, Zap, Trash2, AlertTriangle, X, EyeOff } from "lucide-react";
 import { useState } from "react";
 import type { ScannedMovie } from "../types";

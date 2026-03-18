@@ -646,7 +646,9 @@ def serve_file(path: str = Query(...)):
 
 
 # Serve built frontend from dist/ if it exists (for packaged app)
-_dist_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dist")
+import sys as _sys
+_base = getattr(_sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_dist_dir = os.path.join(_base, "dist")
 if os.path.isdir(_dist_dir):
     @app.get("/")
     def serve_index():
