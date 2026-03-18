@@ -31,4 +31,7 @@ export const api = {
   getMovieImages: (movieId: string) => request("/api/movie-images", "POST", { movieId }),
   saveImage: (movieId: string, imageUrl: string, imageType: "poster" | "fanart") => request("/api/save-image", "POST", { movieId, imageUrl, imageType }),
   unsetMovie: (movieId: string) => request("/api/unset-movie", "POST", { movieId }),
+  getDuplicates: () => request("/api/duplicates"),
+  deleteMovieFile: (movieId: string) => request("/api/delete-movie-file", "POST", { movieId }),
+  probeAll: () => request("/api/probe-all", "POST"),
 };

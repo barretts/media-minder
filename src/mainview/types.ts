@@ -20,7 +20,19 @@ export interface ScannedMovie {
   imdbId: string | null;
   movieData: MovieData | null;
   parts: MoviePart[];
+  fileSize: number;
+  resolution: string;
+  width: number;
+  height: number;
+  videoCodec: string;
+  audioCodec: string;
+  audioChannels: number;
+  duration: number;
+  bitrate: number;
 }
+
+export type SortField = "title" | "year" | "size" | "resolution" | "status";
+export type SortDir = "asc" | "desc";
 
 export interface MoviePart {
   partNum: number;

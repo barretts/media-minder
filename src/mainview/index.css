@@ -4,18 +4,37 @@
 
 @layer base {
   body {
-    @apply bg-surface-950 text-surface-100 m-0 font-sans antialiased;
+    @apply bg-surface-900 text-sol-text m-0 antialiased;
+    font-family: 'Lucida Sans', 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 13px;
   }
   ::-webkit-scrollbar {
-    width: 8px;
+    width: 16px;
+    height: 16px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-surface-900;
+    background: #0d3347;
+    border-left: 1px solid #0a2535;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-surface-600 rounded;
+    background: linear-gradient(to right, #2d8aaa, #1a6580, #0f4a66);
+    border: 1px solid #0a3d52;
+    border-top-color: #3aa0c0;
+    border-left-color: #3aa0c0;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-surface-500;
+    background: linear-gradient(to right, #3aaac8, #2080a0, #145870);
+  }
+  ::-webkit-scrollbar-button {
+    background: linear-gradient(to bottom, #1a6580, #0d3347);
+    border: 1px solid #0a3d52;
+    border-top-color: #3aa0c0;
+    border-left-color: #3aa0c0;
+    display: block;
+    height: 16px;
+    width: 16px;
+  }
+  ::-webkit-scrollbar-corner {
+    background: #0d3347;
   }
 }

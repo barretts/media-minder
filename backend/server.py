@@ -11,7 +11,7 @@ import traceback
 
 from settings import load_settings, save_settings
 from scanner import scan_directories
-from scraper import tmdb_search, tmdb_movie_details, imdb_search, imdb_movie_details, _tmdb_get, TMDB_IMAGE_BASE, SESSION
+from scraper import tmdb_search, tmdb_movie_details, tmdb_find_by_imdb, imdb_search, imdb_movie_details, _tmdb_get, TMDB_IMAGE_BASE, SESSION
 from nfo import save_nfo
 from images import download_movie_images
 
@@ -388,9 +388,12 @@ def imdb_process(body: ImdbMatchRequest):
         raise HTTPException(status_code=404, detail="Movie not found")
 
     try:
-        data = imdb_movie_details(body.imdbId)
+        # Try TMDB lookup via IMDB ID first (reliable API), fall back to IMDB scraping
+        data = tmdb_find_by_imdb(body.imdbId)
         if not data:
-            raise HTTPException(status_code=500, detail="Failed to scrape IMDB details")
+            data = imdb_movie_details(body.imdbId)
+        if not data:
+            raise HTTPException(status_code=500, detail="Failed to fetch movie details")
 
         movies[idx] = {
             **movies[idx],
@@ -518,6 +521,120 @@ def save_image(body: ImageSelectRequest):
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/probe-all")
+def probe_all():
+    """Run ffprobe on all non-ignored movies that have NFOs but no cached fileinfo. Updates NFOs in place."""
+    from scanner import _probe_video
+    from nfo import update_nfo_fileinfo
+    probed = 0
+    skipped = 0
+    failed = 0
+    for m in movies:
+        if m.get("ignored"):
+            skipped += 1
+            continue
+        # Already has cached fileinfo?
+        cached = (m.get("movieData") or {}).get("fileinfo")
+        if cached and cached.get("width"):
+            skipped += 1
+            continue
+        probe = _probe_video(m["filePath"])
+        if not probe.get("width"):
+            failed += 1
+            continue
+        # Update in-memory movieData
+        if m.get("movieData"):
+            m["movieData"]["fileinfo"] = probe
+            m["movieData"]["videoCodec"] = probe.get("videoCodec", "")
+            m["movieData"]["audioCodec"] = probe.get("audioCodec", "")
+            m["movieData"]["audioChannels"] = probe.get("audioChannels", 0)
+            m["movieData"]["width"] = probe.get("width", 0)
+            m["movieData"]["height"] = probe.get("height", 0)
+            m["movieData"]["duration"] = probe.get("duration", 0)
+            m["movieData"]["bitrate"] = probe.get("bitrate", 0)
+        # Write to NFO if it exists
+        nfo_path = m.get("nfoPath")
+        if nfo_path and os.path.isfile(nfo_path):
+            update_nfo_fileinfo(nfo_path, probe)
+        probed += 1
+    return {"probed": probed, "skipped": skipped, "failed": failed}
+
+
+class DeleteFileRequest(BaseModel):
+    movieId: str
+
+
+@app.post("/api/delete-movie-file")
+def delete_movie_file(body: DeleteFileRequest):
+    """Delete a movie's video file and its companion files (NFO, poster, fanart). Removes from in-memory list."""
+    global movies
+    idx = next((i for i, m in enumerate(movies) if m["id"] == body.movieId), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    movie = movies[idx]
+    deleted = []
+    # Delete the video file
+    if os.path.isfile(movie["filePath"]):
+        try:
+            os.remove(movie["filePath"])
+            deleted.append(movie["filePath"])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to delete video: {e}")
+    # Delete companion files
+    for field in ("nfoPath", "posterPath", "fanartPath"):
+        path = movie.get(field)
+        if path and os.path.isfile(path):
+            try:
+                os.remove(path)
+                deleted.append(path)
+            except Exception as e:
+                print(f"Could not delete {path}: {e}")
+    # Remove from in-memory list
+    movies.pop(idx)
+    return {"deleted": deleted, "movieId": body.movieId}
+
+
+@app.get("/api/duplicates")
+def get_duplicates():
+    """Find movies with duplicate parsed titles, using cached fileinfo or ffprobe on-demand."""
+    from collections import defaultdict
+    from scanner import _probe_video
+    title_groups = defaultdict(list)
+    display_titles = {}  # keep original-cased title for display
+    for m in movies:
+        key = (m["parsedTitle"].lower().strip(), m.get("parsedYear"))
+        title_groups[key].append(m)
+        if key not in display_titles:
+            display_titles[key] = m.get("movieData", {}).get("title") if m.get("movieData") else None
+        if not display_titles[key]:
+            display_titles[key] = m["parsedTitle"]
+    dupes = {}
+    for k, group in title_groups.items():
+        if len(group) < 2:
+            continue
+        enriched = []
+        for m in group:
+            # Check for cached fileinfo from NFO first
+            cached = (m.get("movieData") or {}).get("fileinfo")
+            if cached and cached.get("width"):
+                info = cached
+            else:
+                info = _probe_video(m["filePath"])
+            enriched.append({**m, **{
+                "resolution": info.get("resolution", ""),
+                "width": info.get("width", 0),
+                "height": info.get("height", 0),
+                "videoCodec": info.get("videoCodec", ""),
+                "audioCodec": info.get("audioCodec", ""),
+                "audioChannels": info.get("audioChannels", 0),
+                "duration": info.get("duration", 0),
+                "bitrate": info.get("bitrate", 0),
+            }})
+        title = display_titles.get(k) or k[0]
+        dupes[f"{title} ({k[1] or '?'})"] = enriched
+    return {"groups": dupes, "totalDuplicates": sum(len(v) for v in dupes.values())}
 
 
 @app.get("/api/file")
