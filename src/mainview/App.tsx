@@ -32,7 +32,12 @@ function App() {
   const [ignoredDuplicateGroups, setIgnoredDuplicateGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    api.getSettings().then(setSettings).catch(console.error);
+    api.getSettings().then((s) => {
+      setSettings(s);
+      if (s.ignoredDuplicateGroups?.length) {
+        setIgnoredDuplicateGroups(new Set<string>(s.ignoredDuplicateGroups));
+      }
+    }).catch(console.error);
   }, []);
 
   const handleScan = useCallback(async () => {
@@ -48,18 +53,40 @@ function App() {
       progressCount += batch.length;
       setMovies(prev => {
         const all = [...prev, ...batch];
-        // Compute duplicates client-side from accumulated movies
-        const groups: Record<string, ScannedMovie[]> = {};
-        for (const m of all) {
-          if (m.ignored) continue;
-          const key = `${(m.movieData?.title || m.parsedTitle)} (${m.parsedYear ?? "?"})`;
-          (groups[key] ??= []).push(m);
-        }
+        // Union-find duplicate grouping matching backend logic
+        const candidates = all.filter(m => !m.ignored);
+        const parent = candidates.map((_, i) => i);
+        const find = (x: number): number => { if (parent[x] !== x) parent[x] = find(parent[x]); return parent[x]; };
+        const union = (x: number, y: number) => { const rx = find(x), ry = find(y); if (rx !== ry) parent[rx] = ry; };
+        const tmdbMap = new Map<number, number>();
+        const imdbMap = new Map<string, number>();
+        const titleMap = new Map<string, number>();
+        candidates.forEach((m, i) => {
+          const tk = `${(m.parsedTitle ?? "").toLowerCase().trim()}|${m.parsedYear ?? "?"}`;
+          if (titleMap.has(tk)) union(i, titleMap.get(tk)!); else titleMap.set(tk, i);
+          if (m.tmdbId && m.tmdbId > 0) {
+            if (tmdbMap.has(m.tmdbId)) union(i, tmdbMap.get(m.tmdbId)!); else tmdbMap.set(m.tmdbId, i);
+          }
+          if (m.imdbId) {
+            if (imdbMap.has(m.imdbId)) union(i, imdbMap.get(m.imdbId)!); else imdbMap.set(m.imdbId, i);
+          }
+        });
+        const rootGroups = new Map<number, ScannedMovie[]>();
+        candidates.forEach((m, i) => {
+          const root = find(i);
+          if (!rootGroups.has(root)) rootGroups.set(root, []);
+          rootGroups.get(root)!.push(m);
+        });
         const dupes: Record<string, ScannedMovie[]> = {};
         let dupeTotal = 0;
-        for (const [k, g] of Object.entries(groups)) {
-          if (g.length >= 2) { dupes[k] = g; dupeTotal += g.length; }
-        }
+        rootGroups.forEach(g => {
+          if (g.length < 2) return;
+          const title = g.find(m => m.movieData?.title)?.movieData?.title ?? g[0].parsedTitle;
+          const year = g.find(m => m.parsedYear)?.parsedYear ?? "?";
+          const key = `${title} (${year})`;
+          dupes[key] = g;
+          dupeTotal += g.length;
+        });
         setDuplicateGroups(dupes);
         setDuplicateCount(dupeTotal);
         return all;
@@ -327,6 +354,7 @@ function App() {
               setIgnoredDuplicateGroups(prev => {
                 const next = new Set(prev);
                 if (ignored) next.add(groupKey); else next.delete(groupKey);
+                api.setIgnoredDuplicateGroups([...next]).catch(console.error);
                 return next;
               });
             }}

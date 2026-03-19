@@ -21,6 +21,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,
+            commands::set_ignored_duplicate_groups,
             commands::scan,
             commands::get_movies,
             commands::search,

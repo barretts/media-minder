@@ -29,6 +29,13 @@ pub fn save_settings(state: State<AppState>, new_settings: AppSettings) -> Resul
     Ok(true)
 }
 
+#[tauri::command]
+pub fn set_ignored_duplicate_groups(state: State<AppState>, groups: Vec<String>) -> Result<bool, String> {
+    let mut s = state.settings.lock().unwrap();
+    s.ignored_duplicate_groups = groups;
+    settings::save_settings(&s).map(|_| true)
+}
+
 // --- Scan ---
 
 #[tauri::command]
@@ -450,22 +457,68 @@ pub async fn get_duplicates(state: State<'_, AppState>) -> Result<serde_json::Va
     let movies = state.movies.lock().unwrap().clone();
 
     let result = tokio::task::spawn_blocking(move || {
-        let mut title_groups: HashMap<(String, Option<i32>), Vec<ScannedMovie>> = HashMap::new();
-        let mut display_titles: HashMap<(String, Option<i32>), String> = HashMap::new();
+        let candidates: Vec<&ScannedMovie> = movies.iter().filter(|m| !m.ignored).collect();
+        let n = candidates.len();
 
-        for m in movies.iter() {
-            if m.ignored { continue; } // Skip ignored movies
-            let key = (m.parsed_title.to_lowercase().trim().to_string(), m.parsed_year);
-            title_groups.entry(key.clone()).or_default().push(m.clone());
-            display_titles.entry(key).or_insert_with(|| {
-                m.movie_data.as_ref().map(|d| d.title.clone()).unwrap_or_else(|| m.parsed_title.clone())
-            });
+        // Union-Find
+        let mut parent: Vec<usize> = (0..n).collect();
+        fn find(parent: &mut Vec<usize>, x: usize) -> usize {
+            if parent[x] != x { parent[x] = find(parent, parent[x]); }
+            parent[x]
         }
+        fn union(parent: &mut Vec<usize>, x: usize, y: usize) {
+            let rx = find(parent, x);
+            let ry = find(parent, y);
+            if rx != ry { parent[rx] = ry; }
+        }
+
+        // Build lookup maps: tmdb_id -> first index, imdb_id -> first index, title_year -> first index
+        let mut tmdb_map: HashMap<i64, usize> = HashMap::new();
+        let mut imdb_map: HashMap<String, usize> = HashMap::new();
+        let mut title_map: HashMap<(String, Option<i32>), usize> = HashMap::new();
+
+        for (i, m) in candidates.iter().enumerate() {
+            // Title+year key
+            let tk = (m.parsed_title.to_lowercase().trim().to_string(), m.parsed_year);
+            if let Some(&j) = title_map.get(&tk) { union(&mut parent, i, j); }
+            else { title_map.insert(tk, i); }
+
+            // TMDB id
+            if let Some(tid) = m.tmdb_id.filter(|&t| t > 0) {
+                if let Some(&j) = tmdb_map.get(&tid) { union(&mut parent, i, j); }
+                else { tmdb_map.insert(tid, i); }
+            }
+
+            // IMDB id
+            if let Some(ref iid) = m.imdb_id {
+                if !iid.is_empty() {
+                    if let Some(&j) = imdb_map.get(iid) { union(&mut parent, i, j); }
+                    else { imdb_map.insert(iid.clone(), i); }
+                }
+            }
+        }
+
+        // Collect groups by root
+        let mut root_groups: HashMap<usize, Vec<&ScannedMovie>> = HashMap::new();
+        for i in 0..n {
+            let root = find(&mut parent, i);
+            root_groups.entry(root).or_default().push(candidates[i]);
+        }
+
+        // Build display name for a group: prefer matched title, fall back to parsed
+        let display_name = |group: &Vec<&ScannedMovie>| -> String {
+            let title = group.iter()
+                .find_map(|m| m.movie_data.as_ref().map(|d| d.title.clone()))
+                .unwrap_or_else(|| group[0].parsed_title.clone());
+            let year = group.iter().find_map(|m| m.parsed_year)
+                .map(|y| y.to_string()).unwrap_or_else(|| "?".to_string());
+            format!("{} ({})", title, year)
+        };
 
         let mut dupes: HashMap<String, Vec<serde_json::Value>> = HashMap::new();
         let mut total = 0usize;
 
-        for (k, group) in &title_groups {
+        for (_root, group) in &root_groups {
             if group.len() < 2 { continue; }
             let mut enriched = Vec::new();
             for m in group {
@@ -484,11 +537,9 @@ pub async fn get_duplicates(state: State<'_, AppState>) -> Result<serde_json::Va
                 }
                 enriched.push(val);
             }
-            let title = display_titles.get(k).cloned().unwrap_or_else(|| k.0.clone());
-            let year_str = k.1.map(|y| y.to_string()).unwrap_or_else(|| "?".to_string());
-            let display_key = format!("{} ({})", title, year_str);
+            let key = display_name(group);
             total += enriched.len();
-            dupes.insert(display_key, enriched);
+            dupes.insert(key, enriched);
         }
 
         serde_json::json!({ "groups": dupes, "totalDuplicates": total })

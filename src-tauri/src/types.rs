@@ -22,6 +22,8 @@ pub struct AppSettings {
     pub ignored_paths: Vec<String>,
     #[serde(default)]
     pub cleanup_strings: Vec<String>,
+    #[serde(default)]
+    pub ignored_duplicate_groups: Vec<String>,
 }
 
 fn default_naming() -> String { "filename".to_string() }
