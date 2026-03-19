@@ -2,17 +2,17 @@ import { Search, CheckCircle, AlertCircle, FileText, EyeOff, X, LayoutList, Layo
 import { useState } from "react";
 import type { ScannedMovie, SortField, SortDir } from "../types";
 
-const API = "http://localhost:3457";
+import { convertFileSrc } from "@tauri-apps/api/core";
 
 function posterSrc(movie: ScannedMovie): string | null {
-  if (movie.posterPath) return `${API}/api/file?path=${encodeURIComponent(movie.posterPath)}&t=${movie.posterTs ?? 0}`;
+  if (movie.posterPath) return `${convertFileSrc(movie.posterPath)}?t=${movie.posterTs ?? 0}`;
   if (movie.movieData?.thumbUrl) return movie.movieData.thumbUrl;
   if (movie.movieData?.posterUrl) return movie.movieData.posterUrl;
   return null;
 }
 
 function fanartSrc(movie: ScannedMovie): string | null {
-  if (movie.fanartPath) return `${API}/api/file?path=${encodeURIComponent(movie.fanartPath)}&t=${movie.fanartTs ?? 0}`;
+  if (movie.fanartPath) return `${convertFileSrc(movie.fanartPath)}?t=${movie.fanartTs ?? 0}`;
   if (movie.movieData?.fanartUrl) return movie.movieData.fanartUrl;
   return null;
 }

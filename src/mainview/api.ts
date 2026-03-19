@@ -1,37 +1,25 @@
-const API_BASE = "http://localhost:3457";
-
-async function request(path: string, method: string = "GET", body?: any): Promise<any> {
-  const opts: RequestInit = {
-    method,
-    headers: { "Content-Type": "application/json" },
-  };
-  if (body) opts.body = JSON.stringify(body);
-
-  const res = await fetch(`${API_BASE}${path}`, opts);
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || data.error || `Request failed: ${res.status}`);
-  return data;
-}
+import { invoke } from "@tauri-apps/api/core";
 
 export const api = {
-  getSettings: () => request("/api/settings"),
-  saveSettings: (settings: any) => request("/api/settings", "POST", settings),
-  scan: () => request("/api/scan", "POST"),
-  getMovies: () => request("/api/movies"),
-  search: (query: string, year?: number) => request("/api/search", "POST", { query, year }),
-  getMovieDetails: (tmdbId: number) => request("/api/movie-details", "POST", { tmdbId }),
-  matchMovie: (movieId: string, tmdbId: number) => request("/api/match", "POST", { movieId, tmdbId }),
-  saveNfo: (movieId: string) => request("/api/save-nfo", "POST", { movieId }),
-  downloadImages: (movieId: string) => request("/api/download-images", "POST", { movieId }),
-  processMovie: (movieId: string, tmdbId: number) => request("/api/process", "POST", { movieId, tmdbId }),
-  autoMatch: () => request("/api/auto-match", "POST"),
-  ignoreMovie: (movieId: string, ignored: boolean = true) => request("/api/ignore", "POST", { movieId, ignored }),
-  imdbSearch: (query: string, year?: number) => request("/api/imdb-search", "POST", { query, year }),
-  imdbProcess: (movieId: string, imdbId: string) => request("/api/imdb-process", "POST", { movieId, imdbId }),
-  getMovieImages: (movieId: string) => request("/api/movie-images", "POST", { movieId }),
-  saveImage: (movieId: string, imageUrl: string, imageType: "poster" | "fanart") => request("/api/save-image", "POST", { movieId, imageUrl, imageType }),
-  unsetMovie: (movieId: string) => request("/api/unset-movie", "POST", { movieId }),
-  getDuplicates: () => request("/api/duplicates"),
-  deleteMovieFile: (movieId: string) => request("/api/delete-movie-file", "POST", { movieId }),
-  probeAll: () => request("/api/probe-all", "POST"),
+  getSettings: () => invoke("get_settings") as Promise<any>,
+  saveSettings: (newSettings: any) => invoke("save_settings", { newSettings }) as Promise<any>,
+  scan: () => invoke("scan") as Promise<any>,
+  getMovies: () => invoke("get_movies") as Promise<any>,
+  search: (query: string, year?: number) => invoke("search", { query, year: year ?? null }) as Promise<any>,
+  getMovieDetails: (tmdbId: number) => invoke("movie_details", { tmdbId }) as Promise<any>,
+  matchMovie: (movieId: string, tmdbId: number) => invoke("process_movie", { movieId, tmdbId }) as Promise<any>,
+  saveNfo: (movieId: string) => invoke("save_nfo_cmd", { movieId }) as Promise<any>,
+  downloadImages: (movieId: string) => invoke("download_images_cmd", { movieId }) as Promise<any>,
+  processMovie: (movieId: string, tmdbId: number) => invoke("process_movie", { movieId, tmdbId }) as Promise<any>,
+  autoMatch: () => invoke("auto_match") as Promise<any>,
+  ignoreMovie: (movieId: string, ignored: boolean = true) => invoke("ignore_movie", { movieId, ignored }) as Promise<any>,
+  imdbSearch: (query: string, year?: number) => invoke("imdb_search_cmd", { query, year: year ?? null }) as Promise<any>,
+  imdbProcess: (movieId: string, imdbId: string) => invoke("imdb_process", { movieId, imdbId }) as Promise<any>,
+  getMovieImages: (movieId: string) => invoke("get_movie_images", { movieId }) as Promise<any>,
+  saveImage: (movieId: string, imageUrl: string, imageType: "poster" | "fanart") => invoke("save_image_cmd", { movieId, imageUrl, imageType }) as Promise<any>,
+  unsetMovie: (movieId: string) => invoke("unset_movie", { movieId }) as Promise<any>,
+  getDuplicates: () => invoke("get_duplicates") as Promise<any>,
+  deleteMovieFile: (movieId: string) => invoke("delete_movie_file", { movieId }) as Promise<any>,
+  probeAll: () => invoke("probe_all") as Promise<any>,
+  deleteImage: (movieId: string, imageType: "poster" | "fanart") => invoke("delete_image_cmd", { movieId, imageType }) as Promise<any>,
 };

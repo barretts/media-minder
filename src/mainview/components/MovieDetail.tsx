@@ -1,3 +1,5 @@
+import React from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Search, Save, Download, Star, Clock, Calendar, Tag, Users, Clapperboard, EyeOff, Eye, Image, X, Film } from "lucide-react";
 import type { ScannedMovie } from "../types";
 
@@ -26,10 +28,10 @@ export function MovieDetail({ movie, onSearch, onSaveNfo, onDownloadImages, onIg
   const data = movie.movieData;
   // Prefer locally saved file paths; use mtime timestamp as cache-buster so browser reloads after changes
   const fanartSrc = movie.fanartPath
-    ? `http://localhost:3457/api/file?path=${encodeURIComponent(movie.fanartPath)}&t=${movie.fanartTs ?? 0}`
+    ? `${convertFileSrc(movie.fanartPath)}?t=${movie.fanartTs ?? 0}`
     : data?.fanartUrl;
   const posterSrc = movie.posterPath
-    ? `http://localhost:3457/api/file?path=${encodeURIComponent(movie.posterPath)}&t=${movie.posterTs ?? 0}`
+    ? `${convertFileSrc(movie.posterPath)}?t=${movie.posterTs ?? 0}`
     : (data?.thumbUrl || data?.posterUrl);
 
   const mb: React.CSSProperties = {
