@@ -97,4 +97,5 @@ export interface AppSettings {
   autoSaveImages: boolean;
   language: string;
   cleanupStrings: string[];
+  tmdbApiKey: string;
 }

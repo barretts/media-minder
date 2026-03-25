@@ -19,6 +19,7 @@ export function SettingsPanel({ settings, onSave, onSaveImmediate }: SettingsPan
     autoSaveImages: true,
     language: "en-US",
     cleanupStrings: [],
+    tmdbApiKey: "",
   });
   const [newDir, setNewDir] = useState("");
   const [newCleanup, setNewCleanup] = useState("");
@@ -222,6 +223,26 @@ export function SettingsPanel({ settings, onSave, onSaveImmediate }: SettingsPan
               </label>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* TMDB API Key */}
+      <section style={{marginBottom: '16px'}}>
+        <div style={sectionHeader}>TMDB API Key</div>
+        <div style={panel}>
+          <p style={{fontSize: '10px', color: '#444444', marginBottom: '6px'}}>
+            Required for metadata scraping. Get a free key at{' '}
+            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noreferrer"
+              style={{color: '#333399'}}>themoviedb.org/settings/api</a>
+          </p>
+          <input
+            type="password"
+            value={local.tmdbApiKey}
+            onChange={(e) => setLocal({ ...local, tmdbApiKey: e.target.value })}
+            placeholder="Paste your TMDB API key here"
+            className="w-full font-mono focus:outline-none"
+            style={inset}
+          />
         </div>
       </section>
 
