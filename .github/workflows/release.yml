@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0-beta.1)'
+        required: true
+        default: 'v1.0.0-beta.1'
 
 jobs:
   release:
@@ -57,10 +60,32 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: MediaMinder ${{ github.ref_name }}
+          tagName: ${{ github.event.inputs.tag }}
+          releaseName: MediaMinder ${{ github.event.inputs.tag }}
           releaseBody: |
-            See [CHANGELOG](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for details.
+            ## MediaMinder ${{ github.event.inputs.tag }}
+
+            First public beta release of MediaMinder — a Tauri-based desktop movie library manager.
+
+            ### Features
+            - Scan local folders for video files
+            - Fetch metadata, cast, ratings, and artwork from TMDB
+            - Save Kodi-compatible NFO files alongside each movie
+            - Download poster, fanart, and actor thumbnails
+            - Manual search and match for any movie
+            - Auto-match all unmatched movies in one click
+            - Detect and manage duplicate entries
+            - Solaris dark theme UI built with React + Tailwind CSS
+
+            ### Setup
+            1. Download the installer for your platform below
+            2. Open **Settings** and enter your [TMDB API key](https://www.themoviedb.org/settings/api) (free)
+            3. Add your movie directories and click **Scan Folders**
+
+            ### Notes
+            - This is a beta release — please [report issues](https://github.com/${{ github.repository }}/issues)
+            - macOS build targets Apple Silicon (M-series); Intel Macs are not yet tested
+            - Settings are stored in `~/.mediaminder/settings.json`
           releaseDraft: true
-          prerelease: false
+          prerelease: true
           args: ${{ matrix.args }}
