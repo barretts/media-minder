@@ -2,8 +2,18 @@ use reqwest::Client;
 use regex::Regex;
 use scraper::{Html, Selector};
 use crate::types::{TmdbSearchResult, MovieData, ActorData, ImdbSearchResult, ImageEntry};
+use crate::settings::load_settings;
 
-const TMDB_API_KEY: &str = "827ba7bdd2eb1db3c4f566828964af80";
+fn tmdb_api_key() -> Result<String, String> {
+    let key = load_settings().tmdb_api_key;
+    if !key.is_empty() {
+        return Ok(key);
+    }
+    std::env::var("TMDB_API_KEY").map_err(|_| \
+        "TMDB API key not configured. Set tmdbApiKey in Settings or the TMDB_API_KEY environment variable.".to_string()
+    )
+}
+
 const TMDB_BASE: &str = "https://api.themoviedb.org/3";
 const TMDB_IMAGE_BASE: &str = "https://image.tmdb.org/t/p";
 
@@ -16,8 +26,9 @@ fn client() -> Client {
 }
 
 async fn tmdb_get(client: &Client, path: &str, extra_params: &[(&str, &str)]) -> Result<serde_json::Value, String> {
+    let api_key = tmdb_api_key()?;
     let mut url = format!("{}{}", TMDB_BASE, path);
-    url.push_str(&format!("?api_key={}", TMDB_API_KEY));
+    url.push_str(&format!("?api_key={}", api_key));
     for (k, v) in extra_params {
         url.push_str(&format!("&{}={}", k, v));
     }
@@ -45,7 +56,8 @@ pub async fn tmdb_search(query: &str, year: Option<i32>) -> Result<Vec<TmdbSearc
         params.push(("year", ys.as_str()));
     }
     // Build URL manually to avoid double-encoding
-    let mut url = format!("{}{}?api_key={}", TMDB_BASE, "/search/movie", TMDB_API_KEY);
+    let api_key = tmdb_api_key()?;
+    let mut url = format!("{}{}?api_key={}", TMDB_BASE, "/search/movie", api_key);
     url.push_str(&format!("&query={}&language=en-US&page=1", urlencoding::encode(query)));
     if let Some(y) = year {
         url.push_str(&format!("&year={}", y));

@@ -1,46 +1,62 @@
 # MediaMinder
 
-Movie library manager built with [Electrobun](https://github.com/blackboardsh/electrobun) — scan folders, scrape metadata from TMDB/IMDB using headless browser (no API keys needed), and save Kodi-compatible NFO files with poster and fanart images.
+Movie library manager built with [Tauri](https://tauri.app) — scan folders, scrape metadata from TMDB, and save Kodi-compatible NFO files with poster and fanart images.
 
 ## Features
 
 - **Folder Scanning** — Point to your movie directories and find all video files
-- **Headless Browser Scraping** — Scrapes TMDB and IMDB directly via Playwright (no API keys required)
+- **TMDB Scraping** — Fetches metadata, cast, ratings, and images via the TMDB API
 - **NFO Generation** — Saves Kodi/XBMC-compatible `.nfo` files with full metadata
 - **Image Downloads** — Poster, fanart, and optionally actor thumbnails
-- **IMDB Match Selection** — Search and manually pick the correct TMDB/IMDB match for any movie
+- **Match Selection** — Search and manually pick the correct TMDB match for any movie
 - **Auto-Match** — Batch-match all unmatched movies in one click
+- **Duplicates View** — Detect and manage duplicate entries across your library
 - **Modern UI** — React + Tailwind CSS dark theme
 
 ## Prerequisites
 
-- [Bun](https://bun.sh) installed
-- A Chromium browser installed (for Playwright headless scraping)
-
-Install Playwright's Chromium browser:
-```bash
-npx playwright install chromium
-```
+- [Rust](https://rustup.rs) (stable toolchain)
+- [Node.js](https://nodejs.org) and npm
+- A [TMDB API key](https://www.themoviedb.org/settings/api) (free)
 
 ## Getting Started
 
 ```bash
-# Install dependencies
-bun install
+# Install JS dependencies
+npm install
 
-# Development (build + run Electrobun)
-bun start
-
-# Development with HMR (recommended)
-bun run dev:hmr
+# Development (Tauri dev server with HMR)
+npm run tauri dev
 
 # Build for production
-bun run build:canary
+npm run tauri build
+```
+
+## TMDB API Key
+
+MediaMinder requires a TMDB API key to fetch movie metadata.
+
+Get a free key at: https://www.themoviedb.org/settings/api
+
+You can provide it in either of two ways (settings file takes priority):
+
+**Option 1 — Settings UI (recommended):**
+Open the app, go to **Settings**, and enter your key in the **TMDB API Key** field.
+It is saved to `~/.mediaminder/settings.json` and never committed to source control.
+
+**Option 2 — Environment variable:**
+```bash
+# Windows (PowerShell)
+$env:TMDB_API_KEY = "your_key_here"
+npm run tauri dev
+
+# macOS / Linux
+TMDB_API_KEY=your_key_here npm run tauri dev
 ```
 
 ## Workflow
 
-1. Go to **Settings** and add your movie directories (e.g. `C:\Movies`, `D:\Films`)
+1. Go to **Settings**, add your movie directories (e.g. `C:\Movies`), and enter your TMDB API key
 2. Click **Save Settings**
 3. Click **Scan Folders** — finds all video files > 100MB
 4. Click **Auto-Match All** to batch-scrape TMDB for all movies
@@ -51,18 +67,20 @@ bun run build:canary
 
 ```
 mediaminder/
+├── src-tauri/                  # Tauri + Rust backend
+│   ├── src/
+│   │   ├── commands.rs         # Tauri IPC command handlers
+│   │   ├── scanner.rs          # Directory scanning
+│   │   ├── scraper.rs          # TMDB API scraping
+│   │   ├── nfo.rs              # Kodi NFO XML generation
+│   │   ├── images.rs           # Poster/fanart downloader
+│   │   ├── settings.rs         # Settings persistence (~/.mediaminder/)
+│   │   └── types.rs            # Shared types
+│   └── tauri.conf.json
 ├── src/
-│   ├── bun/                    # Main process (Electrobun/Bun)
-│   │   ├── index.ts            # API server + window setup
-│   │   ├── scanner.ts          # Directory scanning
-│   │   ├── scraper.ts          # TMDB/IMDB headless browser scraping
-│   │   ├── nfo.ts              # Kodi NFO XML generation
-│   │   ├── images.ts           # Poster/fanart downloader
-│   │   ├── settings.ts         # Settings persistence
-│   │   └── types.ts            # Shared types
 │   └── mainview/               # Frontend (React + Tailwind)
 │       ├── App.tsx
-│       ├── api.ts              # HTTP client for backend API
+│       ├── api.ts              # Tauri invoke() wrappers
 │       ├── types.ts
 │       └── components/
 │           ├── Sidebar.tsx
@@ -70,8 +88,9 @@ mediaminder/
 │           ├── MovieDetail.tsx
 │           ├── SearchModal.tsx
 │           ├── SettingsPanel.tsx
+│           ├── DuplicatesView.tsx
+│           ├── ImagePickerModal.tsx
 │           └── StatusBar.tsx
-├── electrobun.config.ts
 ├── vite.config.ts
 ├── tailwind.config.js
 └── package.json

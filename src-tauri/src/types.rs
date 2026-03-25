@@ -24,6 +24,8 @@ pub struct AppSettings {
     pub cleanup_strings: Vec<String>,
     #[serde(default)]
     pub ignored_duplicate_groups: Vec<String>,
+    #[serde(default)]
+    pub tmdb_api_key: String,
 }
 
 fn default_naming() -> String { "filename".to_string() }
