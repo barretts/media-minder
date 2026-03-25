@@ -9,9 +9,7 @@ fn tmdb_api_key() -> Result<String, String> {
     if !key.is_empty() {
         return Ok(key);
     }
-    std::env::var("TMDB_API_KEY").map_err(|_| \
-        "TMDB API key not configured. Set tmdbApiKey in Settings or the TMDB_API_KEY environment variable.".to_string()
-    )
+    std::env::var("TMDB_API_KEY").map_err(|_| "TMDB API key not configured. Set it in Settings or via the TMDB_API_KEY environment variable.".to_string())
 }
 
 const TMDB_BASE: &str = "https://api.themoviedb.org/3";

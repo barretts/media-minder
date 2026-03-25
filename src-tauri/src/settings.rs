@@ -32,6 +32,7 @@ pub fn load_settings() -> AppSettings {
         ignored_paths: vec![],
         cleanup_strings: vec![],
         ignored_duplicate_groups: vec![],
+        tmdb_api_key: String::new(),
     }
 }
 
