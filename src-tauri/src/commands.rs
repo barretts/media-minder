@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Mutex;
 use tauri::{State, AppHandle, Emitter};
+use crate::db::CatalogDb;
 use crate::types::*;
 use crate::settings;
 use crate::scanner;
@@ -13,6 +14,72 @@ use crate::images;
 pub struct AppState {
     pub settings: Mutex<AppSettings>,
     pub movies: Mutex<Vec<ScannedMovie>>,
+    pub catalog: CatalogDb,
+}
+
+fn stable_movie_id(file_path: &str) -> String {
+    file_path.to_string()
+}
+
+fn file_modified_ts(path: &str) -> Option<u64> {
+    fs::metadata(path)
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+}
+
+fn should_reuse_cached(scanned: &ScannedMovie, cached: &ScannedMovie) -> bool {
+    scanned.file_size == cached.file_size
+        && file_modified_ts(&scanned.file_path) == file_modified_ts(&cached.file_path)
+}
+
+fn merge_scanned_with_cached(scanned_movies: Vec<ScannedMovie>, cached_movies: &[ScannedMovie]) -> Vec<ScannedMovie> {
+    let cached_by_path: HashMap<&str, &ScannedMovie> = cached_movies
+        .iter()
+        .map(|movie| (movie.file_path.as_str(), movie))
+        .collect();
+
+    scanned_movies
+        .into_iter()
+        .map(|mut scanned| {
+            scanned.id = stable_movie_id(&scanned.file_path);
+            if let Some(cached) = cached_by_path.get(scanned.file_path.as_str()) {
+                if should_reuse_cached(&scanned, cached) {
+                    let mut merged = (*cached).clone();
+                    merged.id = stable_movie_id(&merged.file_path);
+                    merged.file_name = scanned.file_name;
+                    merged.folder_path = scanned.folder_path;
+                    merged.folder_name = scanned.folder_name;
+                    merged.parsed_title = scanned.parsed_title;
+                    merged.parsed_year = scanned.parsed_year;
+                    merged.has_nfo = scanned.has_nfo;
+                    merged.has_poster = scanned.has_poster;
+                    merged.has_fanart = scanned.has_fanart;
+                    merged.nfo_path = scanned.nfo_path;
+                    merged.poster_path = scanned.poster_path;
+                    merged.fanart_path = scanned.fanart_path;
+                    merged.file_size = scanned.file_size;
+                    return merged;
+                }
+
+                scanned.ignored = cached.ignored;
+                scanned.poster_ts = cached.poster_ts;
+                scanned.fanart_ts = cached.fanart_ts;
+            }
+            scanned
+        })
+        .collect()
+}
+
+fn persist_movie(state: &AppState, movie: &ScannedMovie) -> Result<(), String> {
+    state.catalog.save_movie(movie)
+}
+
+fn replace_movies_cache(state: &AppState, movies: Vec<ScannedMovie>) -> Result<Vec<ScannedMovie>, String> {
+    state.catalog.replace_movies(&movies)?;
+    *state.movies.lock().unwrap() = movies.clone();
+    Ok(movies)
 }
 
 // --- Settings ---
@@ -43,6 +110,7 @@ pub async fn scan(state: State<'_, AppState>, app: AppHandle) -> Result<serde_js
     let dirs = state.settings.lock().unwrap().movie_directories.clone();
     let ignored_paths = state.settings.lock().unwrap().ignored_paths.clone();
     let ignored_set: std::collections::HashSet<String> = ignored_paths.into_iter().collect();
+    let cached_movies = state.movies.lock().unwrap().clone();
 
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<ScannedMovie>>();
 
@@ -65,14 +133,17 @@ pub async fn scan(state: State<'_, AppState>, app: AppHandle) -> Result<serde_js
     // Wait for the full scan to complete and get the grouped result
     let mut movies = scan_handle.await.map_err(|e| e.to_string())?;
 
+    movies = merge_scanned_with_cached(movies, &cached_movies);
+
     for m in &mut movies {
+        m.id = stable_movie_id(&m.file_path);
         if ignored_set.contains(&m.file_path) {
             m.ignored = true;
         }
     }
 
     let total = movies.len();
-    *state.movies.lock().unwrap() = movies.clone();
+    let movies = replace_movies_cache(&state, movies)?;
     Ok(serde_json::json!({ "movies": movies, "total": total }))
 }
 
@@ -122,6 +193,8 @@ pub async fn process_movie(state: State<'_, AppState>, movie_id: String, tmdb_id
         movies[idx].clone()
     }; // lock dropped here
 
+    persist_movie(&state, &movie_ref)?;
+
     if settings.auto_save_images {
         let (poster, fanart) = images::download_movie_images(
             &movie_ref, &data, &settings.naming_convention,
@@ -131,6 +204,11 @@ pub async fn process_movie(state: State<'_, AppState>, movie_id: String, tmdb_id
         let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
         if let Some(p) = poster { movies[idx].has_poster = true; movies[idx].poster_path = Some(p); }
         if let Some(f) = fanart { movies[idx].has_fanart = true; movies[idx].fanart_path = Some(f); }
+        let movie = movies[idx].clone();
+        drop(movies);
+        persist_movie(&state, &movie)?;
+        let movies = state.movies.lock().unwrap();
+        let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
         Ok(serde_json::json!({ "movie": movies[idx] }))
     } else {
         let movies = state.movies.lock().unwrap();
@@ -201,7 +279,10 @@ pub async fn auto_match(state: State<'_, AppState>) -> Result<serde_json::Value,
                             movies[idx].nfo_path = Some(nfo_path);
                         }
                     }
-                    Some(movies[idx].clone())
+                    let movie = movies[idx].clone();
+                    drop(movies);
+                    let _ = persist_movie(&state, &movie);
+                    Some(movie)
                 } else { None }
             }; // lock dropped
 
@@ -215,6 +296,9 @@ pub async fn auto_match(state: State<'_, AppState>) -> Result<serde_json::Value,
                     if let Some(idx) = movies.iter().position(|m| m.id == *movie_id) {
                         if let Some(p) = poster { movies[idx].has_poster = true; movies[idx].poster_path = Some(p); }
                         if let Some(f) = fanart { movies[idx].has_fanart = true; movies[idx].fanart_path = Some(f); }
+                        let movie = movies[idx].clone();
+                        drop(movies);
+                        let _ = persist_movie(&state, &movie);
                     }
                 }
             }
@@ -239,6 +323,9 @@ pub fn save_nfo_cmd(state: State<AppState>, movie_id: String) -> Result<serde_js
     let nfo_path = nfo::save_nfo(&movies[idx], &data, &settings.naming_convention)?;
     movies[idx].has_nfo = true;
     movies[idx].nfo_path = Some(nfo_path.clone());
+    let movie = movies[idx].clone();
+    drop(movies);
+    persist_movie(&state, &movie)?;
     Ok(serde_json::json!({ "nfoPath": nfo_path }))
 }
 
@@ -261,6 +348,9 @@ pub async fn download_images_cmd(state: State<'_, AppState>, movie_id: String) -
     let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
     if let Some(p) = &poster { movies[idx].has_poster = true; movies[idx].poster_path = Some(p.clone()); }
     if let Some(f) = &fanart { movies[idx].has_fanart = true; movies[idx].fanart_path = Some(f.clone()); }
+    let movie = movies[idx].clone();
+    drop(movies);
+    persist_movie(&state, &movie)?;
 
     Ok(serde_json::json!({ "result": { "poster": poster, "fanart": fanart } }))
 }
@@ -283,6 +373,14 @@ pub fn ignore_movie(state: State<AppState>, movie_id: String, ignored: bool) -> 
     }
     settings.ignored_paths = ignored_paths.into_iter().collect();
     let _ = crate::settings::save_settings(&settings);
+
+    let movie = movies[idx].clone();
+    drop(settings);
+    drop(movies);
+    persist_movie(&state, &movie)?;
+
+    let movies = state.movies.lock().unwrap();
+    let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
 
     Ok(serde_json::json!({ "movie": movies[idx] }))
 }
@@ -315,6 +413,13 @@ pub fn unset_movie(state: State<AppState>, movie_id: String) -> Result<serde_jso
     movies[idx].poster_path = None;
     movies[idx].has_fanart = false;
     movies[idx].fanart_path = None;
+
+    let movie = movies[idx].clone();
+    drop(movies);
+    persist_movie(&state, &movie)?;
+
+    let movies = state.movies.lock().unwrap();
+    let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
 
     Ok(serde_json::json!({ "movie": movies[idx], "deleted": deleted }))
 }
@@ -351,6 +456,9 @@ pub async fn imdb_process(state: State<'_, AppState>, movie_id: String, imdb_id:
                 movies[idx].nfo_path = Some(nfo_path);
             }
         }
+        let movie = movies[idx].clone();
+        drop(movies);
+        persist_movie(&state, &movie)?;
     }
 
     if settings.auto_save_images {
@@ -363,6 +471,9 @@ pub async fn imdb_process(state: State<'_, AppState>, movie_id: String, imdb_id:
         if let Some(idx) = movies.iter().position(|m| m.id == movie_id) {
             if let Some(p) = poster { movies[idx].has_poster = true; movies[idx].poster_path = Some(p); }
             if let Some(f) = fanart { movies[idx].has_fanart = true; movies[idx].fanart_path = Some(f); }
+            let movie = movies[idx].clone();
+            drop(movies);
+            persist_movie(&state, &movie)?;
         }
     }
 
@@ -425,6 +536,13 @@ pub async fn save_image_cmd(state: State<'_, AppState>, movie_id: String, image_
         movies[idx].fanart_ts = Some(ts);
     }
 
+    let movie = movies[idx].clone();
+    drop(movies);
+    persist_movie(&state, &movie)?;
+
+    let movies = state.movies.lock().unwrap();
+    let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
+
     Ok(serde_json::json!({ "movie": movies[idx] }))
 }
 
@@ -447,6 +565,12 @@ pub fn delete_image_cmd(state: State<AppState>, movie_id: String, image_type: St
         movies[idx].fanart_path = None;
         movies[idx].fanart_ts = None;
     }
+    let movie = movies[idx].clone();
+    drop(movies);
+    persist_movie(&state, &movie)?;
+
+    let movies = state.movies.lock().unwrap();
+    let idx = movies.iter().position(|m| m.id == movie_id).ok_or("Movie not found")?;
     Ok(serde_json::json!({ "movie": movies[idx] }))
 }
 
@@ -573,7 +697,9 @@ pub fn delete_movie_file(state: State<AppState>, movie_id: String) -> Result<ser
         }
     }
 
-    movies.remove(idx);
+    let removed = movies.remove(idx);
+    drop(movies);
+    state.catalog.delete_movie(&removed.file_path)?;
     Ok(serde_json::json!({ "deleted": deleted, "movieId": movie_id }))
 }
 
@@ -618,6 +744,7 @@ pub async fn probe_all(state: State<'_, AppState>) -> Result<serde_json::Value, 
         (movies, probed, skipped, failed)
     }).await.map_err(|e| e.to_string())?;
 
+    state.catalog.save_movies(&updated_movies)?;
     *state.movies.lock().unwrap() = updated_movies;
     Ok(serde_json::json!({ "probed": probed, "skipped": skipped, "failed": failed }))
 }

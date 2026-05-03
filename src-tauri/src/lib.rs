@@ -4,19 +4,24 @@ mod scanner;
 mod scraper;
 mod nfo;
 mod images;
+mod db;
 mod commands;
 
 use commands::AppState;
+use db::CatalogDb;
 use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let initial_settings = settings::load_settings();
+    let catalog = CatalogDb::new().expect("failed to initialize catalog database");
+    let cached_movies = catalog.load_movies().unwrap_or_default();
 
     tauri::Builder::default()
         .manage(AppState {
             settings: Mutex::new(initial_settings),
-            movies: Mutex::new(Vec::new()),
+            movies: Mutex::new(cached_movies),
+            catalog,
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,

@@ -31,26 +31,31 @@ function App() {
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [ignoredDuplicateGroups, setIgnoredDuplicateGroups] = useState<Set<string>>(new Set());
 
-  useEffect(() => {
-    api.getSettings().then((s) => {
-      setSettings(s);
-      if (s.ignoredDuplicateGroups?.length) {
-        setIgnoredDuplicateGroups(new Set<string>(s.ignoredDuplicateGroups));
-      }
-    }).catch(console.error);
+  const loadDuplicates = useCallback(async () => {
+    try {
+      const d = await api.getDuplicates();
+      setDuplicateGroups(d.groups || {});
+      setDuplicateCount(d.totalDuplicates || 0);
+    } catch {}
   }, []);
 
-  const handleScan = useCallback(async () => {
+  const handleScan = useCallback(async (background = false) => {
     setLoading(true);
-    setStatus("Scanning directories...");
-    setMovies([]);
-    setSelectedMovie(null);
+    setStatus(background ? "Refreshing library from disk..." : "Scanning directories...");
+    if (!background) {
+      setMovies([]);
+      setSelectedMovie(null);
+    }
     let progressCount = 0;
 
     // Listen for progressive scan results
     const unlisten = await listen<{ movies: ScannedMovie[] }>("scan-progress", (event) => {
       const batch = event.payload.movies;
       progressCount += batch.length;
+      if (background) {
+        setStatus(`Refreshing... ${progressCount} files scanned`);
+        return;
+      }
       setMovies(prev => {
         const all = [...prev, ...batch];
         // Union-find duplicate grouping matching backend logic
@@ -98,17 +103,17 @@ function App() {
       const result = await api.scan();
       unlisten();
       setMovies(result.movies);
+      await loadDuplicates();
       const unmatched = result.movies.filter((m: ScannedMovie) => !m.hasNfo && !m.matched);
       if (unmatched.length === 0) {
-        setStatus(`Found ${result.total} movies — all already matched`);
+        setStatus(background ? `Library refreshed: ${result.total} movies cached` : `Found ${result.total} movies — all already matched`);
         setLoading(false);
         return;
       }
-      // Fetch duplicates after scan
-      api.getDuplicates().then((d) => { setDuplicateGroups(d.groups || {}); setDuplicateCount(d.totalDuplicates || 0); }).catch(() => {});
       setStatus(`Found ${result.total} movies. Auto-matching ${unmatched.length} via TMDB...`);
       const matchResult = await api.autoMatch();
       setMovies(matchResult.movies);
+      await loadDuplicates();
       const succeeded = matchResult.results.filter((r: any) => r.success).length;
       const failedIds = matchResult.results.filter((r: any) => !r.success).map((r: any) => r.movieId);
       const failedTitles = matchResult.movies
@@ -124,7 +129,35 @@ function App() {
       setStatus(`Scan failed: ${e.message ?? e}`);
     }
     setLoading(false);
-  }, []);
+  }, [loadDuplicates]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [s, movieResult] = await Promise.all([api.getSettings(), api.getMovies()]);
+        if (cancelled) return;
+        setSettings(s);
+        setMovies(movieResult.movies || []);
+        setStatus((movieResult.movies?.length ?? 0) > 0 ? `Loaded ${movieResult.movies.length} cached movies` : "No cached movies yet");
+        if (s.ignoredDuplicateGroups?.length) {
+          setIgnoredDuplicateGroups(new Set<string>(s.ignoredDuplicateGroups));
+        }
+        await loadDuplicates();
+        void handleScan(true);
+      } catch (error) {
+        if (!cancelled) {
+          console.error(error);
+          setStatus("Failed to load cached library");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [handleScan, loadDuplicates]);
 
   const handleAutoMatch = useCallback(async () => {
     setLoading(true);

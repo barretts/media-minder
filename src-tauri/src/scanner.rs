@@ -219,7 +219,6 @@ pub fn scan_directories_streaming(
     ]);
 
     let mut raw: Vec<(ScannedMovie, Option<i32>)> = Vec::new();
-    let mut counter = 0u64;
     let mut batch: Vec<ScannedMovie> = Vec::new();
 
     for directory in directories {
@@ -254,7 +253,6 @@ pub fn scan_directories_streaming(
             let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
             if size < 50 * 1024 * 1024 { continue; }
 
-            counter += 1;
             let fname = path.file_name().and_then(|f| f.to_str()).unwrap_or("").to_string();
             let name_no_ext = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
             let folder_path = path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
@@ -289,7 +287,7 @@ pub fn scan_directories_streaming(
             }
 
             let movie = ScannedMovie {
-                id: format!("movie-{}", counter),
+                id: filepath.clone(),
                 file_path: filepath,
                 file_name: fname,
                 folder_path,

@@ -27,5 +27,6 @@ quick-xml = { version = "0.37", features = ["serialize"] }
 walkdir = "2"
 regex = "1"
 dirs = "6"
+rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 urlencoding = "2"
